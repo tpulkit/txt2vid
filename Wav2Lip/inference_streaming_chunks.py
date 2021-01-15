@@ -9,6 +9,7 @@ from glob import glob
 import torch, face_detection
 from models import Wav2Lip
 import platform
+from pydub import AudioSegment
 
 parser = argparse.ArgumentParser(description='Inference code to lip-sync videos in the wild using Wav2Lip models')
 
@@ -237,6 +238,7 @@ def main():
     mel_idx_multiplier = 15.0 / fps  # 80 #15
 
     NUM_AUDIO_SAMPLES_PER_STEP = 3200  # 200 ms for 16000 Hz
+    time_step = 3200 * 1000 / 16000  # in ms (assumes 16kHz sampled audio)
 
     num_audio_samples = len(wav)
     print(num_audio_samples)
@@ -244,17 +246,31 @@ def main():
     print("Model loaded")
 
     frame_h, frame_w = full_frames[0].shape[:-1]
-    out = cv2.VideoWriter('temp/result.avi',
-                          cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
+    num_chunks = int(np.ceil(num_audio_samples // NUM_AUDIO_SAMPLES_PER_STEP))
 
-    for audio_step in tqdm(range(int(np.ceil(num_audio_samples // NUM_AUDIO_SAMPLES_PER_STEP)))):
-        curr_wav = wav[audio_step * NUM_AUDIO_SAMPLES_PER_STEP:(audio_step + 1) * NUM_AUDIO_SAMPLES_PER_STEP]
+    f_concat = open('temp/concatlist.txt', 'w')
+
+    for audio_step in tqdm(range(num_chunks)):
+        video_chunk_name = args.outfile[:-4] + '_chunk_' + str(audio_step) + '.mp4'
+        tmp_video_chunk = os.path.join('temp', video_chunk_name)
+
+        audio_chunk_name = args.outfile[:-4] + '_audiochunk_' + str(audio_step) + '.wav'
+        tmp_audio_chunk = os.path.join('temp', audio_chunk_name)
+
+        out = cv2.VideoWriter('temp/result.avi',
+                              cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
+
+        curr_wav = wav[(audio_step) * NUM_AUDIO_SAMPLES_PER_STEP:(audio_step + 1) * NUM_AUDIO_SAMPLES_PER_STEP]
+        audioSegment = AudioSegment.from_wav(args.audio)
+        audioSegment = audioSegment[(audio_step) * time_step:(audio_step + 1) * time_step]
+        audioSegment.export(tmp_audio_chunk, format='wav')
+
         #       print(curr_wav.shape)
         #       print('start:',audio_step*NUM_AUDIO_SAMPLES_PER_STEP)
         #       print('end:',(audio_step+1)*NUM_AUDIO_SAMPLES_PER_STEP)
         mel = audio.melspectrogram(curr_wav)
         #        print(curr_wav)
-        print(mel.shape)
+        print('\nShape of Mel: {}'.format(mel.shape))
 
         if np.isnan(mel.reshape(-1)).sum() > 0:
             raise ValueError(
@@ -288,19 +304,29 @@ def main():
 
             pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
 
+            # print(len(frames))
+
             for p, f, c in zip(pred, frames, coords):
                 y1, y2, x1, x2 = c
                 p = cv2.resize(p.astype(np.uint8), (x2 - x1, y2 - y1))
 
                 f[y1:y2, x1:x2] = p
-                #            print(f.dtype)
+                #            print(f.dtype)s
                 #            cv2.imshow("mywindow",f)
                 #            cv2.waitKey(1)
                 out.write(f)
 
-    out.release()
+        out.release()
 
-    command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 1 {}'.format(args.audio, 'temp/result.avi', args.outfile)
+        f_concat.write('file {}\n'.format(video_chunk_name))
+
+        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 1 {}'.format(tmp_audio_chunk, 'temp/result.avi',
+                                                                      tmp_video_chunk)
+        subprocess.call(command, shell=platform.system() != 'Windows')
+        os.remove('temp/result.avi')
+
+    f_concat.close()
+    command = 'ffmpeg -y -f concat -safe 0 -i {} -c copy {}'.format('temp/concatlist.txt', args.outfile)
     subprocess.call(command, shell=platform.system() != 'Windows')
 
 
