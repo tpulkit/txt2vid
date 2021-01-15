@@ -1,3 +1,6 @@
 Wav2Lip/checkpoints/*
 Wav2Lip/face_detection/detection/sfd/*
+Wav2Lip/results/*
+Wav2Lip/temp/*
+Wav2Lip/sample_data/*
 *pycache*
