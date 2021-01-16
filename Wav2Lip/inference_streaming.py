@@ -32,7 +32,7 @@ parser.add_argument('--pads', nargs='+', type=int, default=[0, 10, 0, 0],
 
 parser.add_argument('--face_det_batch_size', type=int,
                     help='Batch size for face detection', default=16)
-parser.add_argument('--wav2lip_batch_size', type=int, help='Batch size for Wav2Lip model(s)', default=128)
+parser.add_argument('--wav2lip_batch_size', type=int, help='Batch size for Wav2Lip model(s)', default=1)
 
 parser.add_argument('--resize_factor', default=1, type=int,
                     help='Reduce the resolution by this factor. Sometimes, best results are obtained at 480p or 720p')
@@ -110,10 +110,7 @@ def face_detect(images):
     del detector
     return results
 
-
-def datagen(frames, mels):
-    img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
-
+def face_detect_wrapper(frames):
     if args.box[0] == -1:
         if not args.static:
             face_det_results = face_detect(frames)  # BGR2RGB for CNN face detection
@@ -123,11 +120,36 @@ def datagen(frames, mels):
         print('Using the specified bounding box instead of face detection...')
         y1, y2, x1, x2 = args.box
         face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in frames]
+    return face_det_results
+
+def datagen(frames, face_det_results, mels, start_frame_idx):
+    # start frame idx is the current frame idx in the output video
+    # we start from this point 
+    img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
+
+    start_frame_idx = start_frame_idx%len(frames) # loop back 
+    num_frames = len(mels)
+    # take frames from start_frame_idx to start_frame_idx+num_frames
+    # wrapping around if necessary
+    if not args.static:
+        if len(frames) == 1:
+            frames_current = frames
+            face_det_results_current = face_det_results
+        if start_frame_idx + num_frames > len(frames):
+            frames_current = frames[start_frame_idx:] + frames[:start_frame_idx + num_frames-len(frames)]
+            face_det_results_current = face_det_results[start_frame_idx:] + face_det_results[:start_frame_idx + num_frames-len(frames)]
+        else:
+            frames_current = frames[start_frame_idx:start_frame_idx+num_frames]
+            face_det_results_current = face_det_results[start_frame_idx:start_frame_idx+num_frames]
+
+    else:
+        frames_current = frames
+        face_det_results_current = face_det_results
 
     for i, m in enumerate(mels):
-        idx = 0 if args.static else i % len(frames)
-        frame_to_save = frames[idx].copy()
-        face, coords = face_det_results[idx].copy()
+        idx = 0 if args.static else i % len(frames_current)
+        frame_to_save = frames_current[idx].copy()
+        face, coords = face_det_results_current[idx].copy()
 
         face = cv2.resize(face, (args.img_size, args.img_size))
 
@@ -159,7 +181,8 @@ def datagen(frames, mels):
 
         yield img_batch, mel_batch, frame_batch, coords_batch
 
-
+# mel_step_size: size of each mel_chunk (except last one which can be shorter)
+# can't be made very small due to neural network architecture (should be > roughly 3)
 mel_step_size = 16
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Using {} for inference.'.format(device))
@@ -224,6 +247,10 @@ def main():
 
     print("Number of frames available for inference: " + str(len(full_frames)))
 
+        
+    # run face detection (precompute)
+    face_det_results = face_detect_wrapper(full_frames)
+
     if not args.audio.endswith('.wav'):
         print('Extracting raw audio...')
         command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav')
@@ -232,21 +259,44 @@ def main():
         args.audio = 'temp/temp.wav'
 
     wav = audio.load_wav(args.audio, 16000)
-    print(wav.shape)
     print('Len of input wav file:', len(wav))
-    mel_idx_multiplier = 15.0 / fps  # 80 #15
 
+    # Overall process works like this:
+    # - split wav file into small chunks
+    # - Initiate output stream for writing frames to intermediate video file
+    # - Go through the audio chunks one by one. For each chunk:
+    #     - compute melspectrrogram: mels
+    #     - convert mel into overlapping chunks (#chunks = #frames correspoonding to audio chunk, e.g., for 200 ms audio and fps 25, we get 5 frames)
+    #     - Now go through the mel_chunks and the input video frames, and run NN to compute the output frame one by one, which are written to the output stream
+    # - Combine the output file with video with the original audio file to get final output
+
+    # mel_idx_multiplier: this is supposed to align the audio melspec to the video fps,
+    # by default set to 80.0/fps. This determines the mel chunking process, defining the 
+    # by which we move a window of size mel_step_size (16). For very short audio chunks, the 
+    # default vale doesn't work well due to rounding effects and edge effects leading to very
+    # short mel vector relative to audio length. We fix this by reducing the mel_idx_multiplier
+    # which reduces the offsets of the consecutive mel chunks, and makes sure we get enough 
+    # frames for each audio chunk.
+    # NOTE: The value has been chosen for fps=25, and NUM_AUDIO_SAMPLES_PER_STEP 3200. For other values, please recalculate
+    mel_idx_multiplier = 15.0 / fps
+
+    # NUM_AUDIO_SAMPLES_PER_STEP: defines the chunks in which audio is processed.
+    # Should be such that number of video frames within step is an integer 
+    # NOTE: Current system assumes 3200 (i.e., 200ms chunks)
+    # NOTE: Can't make this much smaller, since that reduces the mel size to so small
+    # that the mel_chunk produced is smaller than allowed by neural network architecture.
     NUM_AUDIO_SAMPLES_PER_STEP = 3200  # 200 ms for 16000 Hz
 
     num_audio_samples = len(wav)
-    print(num_audio_samples)
     model = load_model(args.checkpoint_path)
     print("Model loaded")
 
     frame_h, frame_w = full_frames[0].shape[:-1]
+    # initiate video writer
     out = cv2.VideoWriter('temp/result.avi',
                           cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
 
+    frames_done = 0
     for audio_step in tqdm(range(int(np.ceil(num_audio_samples // NUM_AUDIO_SAMPLES_PER_STEP)))):
         curr_wav = wav[audio_step * NUM_AUDIO_SAMPLES_PER_STEP:(audio_step + 1) * NUM_AUDIO_SAMPLES_PER_STEP]
         #       print(curr_wav.shape)
@@ -254,12 +304,18 @@ def main():
         #       print('end:',(audio_step+1)*NUM_AUDIO_SAMPLES_PER_STEP)
         mel = audio.melspectrogram(curr_wav)
         #        print(curr_wav)
-        print(mel.shape)
+        # print(mel.shape)
 
         if np.isnan(mel.reshape(-1)).sum() > 0:
             raise ValueError(
                 'Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
 
+        # mel_chunk generation process. Generate overlapping chunks, with the shift in 
+        # chunks determined by int(i * mel_idx_multiplier), and the chunk length is 
+        # mel_step_size = 16 (except for last chunk). Two important constraints to satisfy:
+        # 1. len(mel_chunks) should be equal to number of frames to be generated according to 
+        #    fps and NUM_AUDIO_SAMPLES_PER_STEP
+        # 2. Each mel_chunk must be sufficiently long otherwise NN gives error.
         mel_chunks = []
 
         i = 0
@@ -271,12 +327,10 @@ def main():
             mel_chunks.append(mel[:, start_idx: start_idx + mel_step_size])
             i += 1
 
-        print("Length of mel chunks: {}".format(len(mel_chunks)))
-
-        full_frames = full_frames[:len(mel_chunks)]
+        # print("Length of mel chunks: {}".format(len(mel_chunks)))
 
         batch_size = args.wav2lip_batch_size
-        gen = datagen(full_frames.copy(), mel_chunks)
+        gen = datagen(full_frames, face_det_results, mel_chunks, frames_done)
 
         for i, (img_batch, mel_batch, frames, coords) in enumerate(gen):
 
@@ -296,10 +350,12 @@ def main():
                 #            print(f.dtype)
                 #            cv2.imshow("mywindow",f)
                 #            cv2.waitKey(1)
+                # write generated frame to video writer (note: no audio right now)
                 out.write(f)
-
+                frames_done += 1
     out.release()
-
+    
+    # combine original audio and generated video
     command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 1 {}'.format(args.audio, 'temp/result.avi', args.outfile)
     subprocess.call(command, shell=platform.system() != 'Windows')
 
