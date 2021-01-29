@@ -9,3 +9,7 @@
 4. `cd ..` 
 
 5. Lip sync based on the animated image (with head/eyes movements) and audio. 
+
+## References
+
+1. [First order model](https://github.com/AliaksandrSiarohin/first-order-model). 
