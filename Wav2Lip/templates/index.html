@@ -7,5 +7,9 @@
 <body>
     <h1> txt2vid demo streaming </h1>
     <img src="{{ url_for('video_feed') }}">
+    <audio controls>
+        <source src="{{ url_for('audio_feed') }}" type="audio/x-wav;codec=pcm">
+        Your browser does not support the audio element.
+    </audio>
 </body>
 </html>
