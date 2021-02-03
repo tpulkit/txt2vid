@@ -1,6 +1,3 @@
-# Based on https://www.pyimagesearch.com/2019/09/02/opencv-stream-video-to-web-browser-html-page/
-# Basic explanation: https://towardsdatascience.com/video-streaming-in-web-browsers-with-opencv-flask-93a38846fe00
-
 import numpy as np
 import scipy, cv2, os, sys, argparse, audio
 import json, subprocess, random, string

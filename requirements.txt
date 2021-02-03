@@ -12,3 +12,4 @@ imageio-ffmpeg==0.4.3
 pandas==0.23.4
 PyYAML==5.1
 scikit-image==0.14.0
+ffmpeg-python==0.2.0

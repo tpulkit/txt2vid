@@ -112,6 +112,8 @@ def start_ffmpeg_process2(fifo_name_video, fifo_name_audio, width, height, fps, 
     args = (
         ffmpeg
         .output(input_audio, input_video, server_url, listen=1, f=video_format)
+        # .global_args('-fflags', 'nobuffer')        # .run()
+        # .global_args('-ss', '4')
         .compile()
     )
     return subprocess.Popen(args)
