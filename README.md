@@ -1,7 +1,7 @@
 Repo containing code for txt2vid project.
 # txt2vid
 
-Currently does speech2vid in a streaming fashion using 
+Currently, does speech2vid in a streaming fashion using 
 [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) codebase
 and using [ffmpeg-python](https://github.com/kkroening/ffmpeg-python/tree/master/examples#audiovideo-pipeline)
 to enable streaming.
@@ -10,29 +10,31 @@ to enable streaming.
 
 Setup requirements using following steps:
 
-* ```
+* Create conda environment:
+  ```
   conda create --name myenv python=3.7
   conda activate myenv
   ```
-Note that 3.7 or above is integral for streaming to work,
+  Note that 3.7 or above is integral for streaming to work,
   even though wav2lip repo uses 3.6. In particular, it is 
-  essential for audio-vido sync (AV sync) in a streaming fashion
-  as both audio and videos are being handled seperately. `myenv` is 
+  essential for audio-video sync (AV sync) in a streaming fashion
+  as both audio and videos are being handled separately. `myenv` is 
   the name of the environment you would like to keep.
   
-* ```
+* Ensure ffmpeg (and ffplay) are installed.
+  ```
   sudo apt-get install ffmpeg
   ``` 
-  Ensure ffmpeg is installed in the machine on the receiver side 
+  These need to be installed in the machine on the receiver side 
   where processing will happen as well as on the local machine 
   where you intend to view the streaming output (for macs use:
   ```brew install ffmpeg```, this also installs ffplay required
   for streaming video content locally).
 
-* ```
+* Install python dependencies.
+  ```
   pip install -r requirements.txt
   ```
-  Install python dependencies.
 
 * Make sure model files are downloaded and put in appropriate
   folder from the `wav2lip` repo.
@@ -46,14 +48,14 @@ Note that 3.7 or above is integral for streaming to work,
 NOTES: 
 * This setup assumes you will be working on a server-machine (**SM**)
   as a  receiver, and place where the code will run and generate
-  the lip-synced video on fly. In reality, this receiver can be 
+  the lip-synced video on the fly. In reality, this receiver can be 
   your own local machine (**LM**) if there is access to GPU. 
   In that case, some installments and port-forwarding for playing
   streaming video using ffplay can be avoided.
   
-* There are multiple scripts enabling added functionalites from 
+* There are multiple scripts enabling added functionalities from 
   original wav2lip code and can be used to build other applications
-  as needed. This is a work-in-progress (e.g text aspects will be
+  as needed. This is a work-in-progress (e.g. text aspects will be
   added with time). <br>
   * audio-video (AV) files provided and saved as AV and lip-synced 
     files. This is original wav2lip functionality. <br>
@@ -68,10 +70,10 @@ NOTES:
     and generates streamable AV and lip-synced video files on fly.
     <br>
     Script: ```Wav2Lip/inference_webstreaming.py```
-  * audio input from port mimicking recording at actual server (**S**), 
+  * audio input from port mimicking recording at the actual server (**S**), 
     while video input by user available at the SM. This receives audio
     from a local machine and combines webstreaming to generate
-    streambale AV and lip-sybnced videos on fly. <br>
+    streamable AV and lip-synced videos on fly. <br>
     Script: ```Wav2Lip/inference_webstreaming_socket_audio.py```
     
 * To reiterate: 
@@ -92,13 +94,13 @@ S (audio) -----> SM (AV-synced streamed video) -----> LM (view AV stream)
 </pre>
 
 Example Code:
-* ssh into server with port-forwarding enabled from local machine.
+* ssh into the server with port-forwarding enabled from local machine.
   ```
   ssh -Y -L localhost:8080:localhost:8080 xyz@abc
   ```
-  `8080` is deafault port but any port should work with appropriately
+  `8080` is default port but any port should work with appropriately
   modified commands below. This step is not needed if SM = LM 
-  (i.e. receiver is lcoal machine and has GPU access).
+  (i.e. receiver is the local machine and has GPU access).
   
 * On SM launch the webstreaming socket. This sets up 
   recording audio server as well as pipes for forwarding streaming
@@ -106,26 +108,26 @@ Example Code:
   ```
   python inference_webstreaming_socket_audio.py --checkpoint_path checkpoints/wav2lip_gan.pth --face "sample_data/005_04.png" --wav2lip_batch_size 1 
   ```
-  Wait till it says `Model Loaded`. The code will hault here waiting
+  Wait till it says `Model Loaded`. The code will halt here waiting
   for input audio to stream. At this point all queues/pipes for 
-  enabling streaming have been setup.
+  enabling streaming have been set up.
   
-* On LM ensure `ffplay` is installed. Also ensure the python
+* On the LM ensure `ffplay` is installed. Also ensure the python
   environment you are working in has `pyaudio` package (else:
   ```pip install pyaudio```). Then launch the audio recording
   and ffplay for video display using `run_streaming.sh` provided
-  in Wav2Lip folder of repo. This commands need to be run locally!
+  in Wav2Lip folder of repo. These commands need to be run locally!
   ```
   sudo chmod 755 run_streaming.sh 
   ./run_streaming.sh
   ```
   This script launches the audio recording immediately and launches the 
   video streaming 5 seconds later on the local machine. The 5s added
-  latency right now is arbitrary but a significant latency is still
+  latency right now is arbitrary, but a significant latency is still
   required because of how ffmpeg works in streaming fashion (it
   picks up significant audio-video packets before streaming), e.g.,
   the script won't work is the latency is reduced to below 3s. If 
-  you get a pipe broken error try to increase the number 5 to
+  you get a pipe broken error, try to increase the number 5 to
   something higher in the run_streaming.sh script.
   **MAIN TODO: IMPROVE LATENCY HERE**
   
@@ -138,13 +140,13 @@ pre-recorded audio + picture/video
 </pre>
 
 Example Code:
-* ssh into server with port-forwarding enabled from local machine.
+* ssh into the server with port-forwarding enabled from local machine.
   ```
   ssh -Y -L localhost:8080:localhost:8080 xyz@abc
   ```
-  `8080` is deafault port but any port should work with appropriately
+  `8080` is default port but any port should work with appropriately
   modified commands below. This step is not needed if SM = LM 
-  (i.e. receiver is lcoal machine and has GPU access).
+  (i.e. receiver is the local machine and has GPU access).
   
 * On SM launch the webstreaming socket. This sets up 
   recording audio server as well as pipes for forwarding streaming
@@ -152,10 +154,10 @@ Example Code:
   ```
   python inference_webstreaming.py --checkpoint_path checkpoints/wav2lip_gan.pth --face "sample_data/005_04.png" --audio "sample_data/hello.m4a" --wav2lip_batch_size 1  
   ```
-  Wait till it says `Model Loaded`. The code will hault here waiting
+  Wait till it says `Model Loaded`. The code will halt here waiting
   for the ffplay command to ask for streaming content.
   
-* On LM ensure `ffplay` is installed. 
+* On the LM ensure `ffplay` is installed. 
   ```
   ffplay -f avi http://localhost:8080
   ```
