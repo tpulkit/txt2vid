@@ -71,7 +71,7 @@ def generate_voice_fn(project_uuid, user_token, text_title, text_input, user_voi
     else:
         text_input_em = copy.copy(text_input)
 
-    print(text_input_em)
+    # print(text_input_em)
 
     data = {
         'data': {
@@ -172,37 +172,37 @@ def audio_thread_handler(kill_audio_thread, ffmpeg_process, audio_packet_queue):
     num_audio_bytes_per_write = int(fps*time_per_write*2) # for 200 ms, 2 bytes per frame
     current_audio_packet_data = b''
     while True:
-        print(time_per_write)
+        # print(time_per_write)
         start_time = time.time()
         audio_bytes_to_write = b''
-        print(audio_packet_queue.empty())
+        # print(audio_packet_queue.empty())
         while not audio_packet_queue.empty():
             # first check if we have new data coming in
             # print('Fetching Data')
             current_audio_packet_data += audio_packet_queue.get()
-        print(time.time()-start_time)
+        # print(time.time()-start_time)
         if len(current_audio_packet_data) >= num_audio_bytes_per_write:
             audio_bytes_to_write = current_audio_packet_data[:num_audio_bytes_per_write]
             current_audio_packet_data = current_audio_packet_data[num_audio_bytes_per_write:]
-            print('More data than worth 200ms.')
-            print(f'Audio bytes to write size {len(audio_bytes_to_write)}')
-            print(f'Buffer audio bytes size {len(current_audio_packet_data)}')
+            # print('More data than worth 200ms.')
+            # print(f'Audio bytes to write size {len(audio_bytes_to_write)}')
+            # print(f'Buffer audio bytes size {len(current_audio_packet_data)}')
         else:
             audio_bytes_to_write = current_audio_packet_data + bytearray(num_audio_bytes_per_write-len(current_audio_packet_data))
             current_audio_packet_data = b''
-            print('Less data than worth 200ms.')
-            print(f'Audio bytes to write size {len(audio_bytes_to_write)}')
-            print(f'Buffer audio bytes size {len(current_audio_packet_data)}')
-        print(time.time() - start_time)
+            # print('Less data than worth 200ms.')
+            # print(f'Audio bytes to write size {len(audio_bytes_to_write)}')
+            # print(f'Buffer audio bytes size {len(current_audio_packet_data)}')
+        # print(time.time() - start_time)
         ffmpeg_process.stdin.write(audio_bytes_to_write)
-        print(time.time() - start_time)
+        # print(time.time() - start_time)
         if kill_audio_thread.is_set() and len(current_audio_packet_data) == 0:
             break
         end_time = time.time()
-        print(end_time - start_time)
+        # print(end_time - start_time)
         sleep_time = time_per_write - end_time + start_time
         time.sleep(sleep_time)
-        assert sleep_time >= 0, 'Sleep Time is Negative'
+        assert sleep_time >= 0, 'Sleep Time is Negative, something went wrong.'
 ### Main Code:
 
 # Launch a queue to keep track of sent out generation jobs to resemble
