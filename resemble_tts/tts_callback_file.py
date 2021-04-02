@@ -2,6 +2,7 @@ from flask import Flask, request, Response
 import requests
 from io import BytesIO
 from scipy.io import wavfile
+import librosa
 
 app = Flask(__name__)
 
@@ -14,7 +15,13 @@ def respond():
     print(wav_download_url)
 
     audio_raw = requests.get(wav_download_url)
+    # Use librosa to convert sr to 16k required by wav2lip from 44.1k provided by resemble
+    # also ensure the correct dtypes of audio data for functions to work
+    orig_sr = 44100
+    final_sr = 16000
     sr, audio_data = wavfile.read(BytesIO(audio_raw.content))
+    audio_data = librosa.resample(audio_data.astype('float32'), orig_sr, final_sr).astype('int16')
+
     # print(sr)
     # print(len(audio_data))
 

@@ -28,7 +28,8 @@ import socket
 parser = argparse.ArgumentParser()
 parser.add_argument("-ip", "--input_port", help='Path to input text file', required=True)
 parser.add_argument("-o", "--OUTFILE", help='Output wav file (specify .wav)', required=True)
-parser.add_argument("-fps", "--fps", help="specifies audio sr, defaulted to 44100", default=44100)
+parser.add_argument("-fps", "--fps", help="specifies audio sr, defaulted to 44100", default=16000)
+# Verify fps here is same as the one implemented in callback function tts_callback_file
 parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="Pulkit Tandon")
 parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", default="None",
                     choices=['neutral', 'angry', 'annoyed', 'question', 'happy'])
