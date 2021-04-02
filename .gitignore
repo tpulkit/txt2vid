@@ -1,5 +1,5 @@
 Wav2Lip/checkpoints/*
-Wav2Lip/face_detection/detection/sfd/*
+Wav2Lip/face_detection/detection/sfd/s3fd.pth
 Wav2Lip/results/*
 Wav2Lip/temp/*
 Wav2Lip/sample_data/*
@@ -9,3 +9,6 @@ Wav2Lip/image_animation/movement_video.mp4
 MakeItTalk/examples/*
 MakeItTalk/examples_cartoon/*
 deepvoice3*
+resemble_tts/results*
+resemble_tts/sample_data*
+huggingface*
