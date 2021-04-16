@@ -1,8 +1,8 @@
 '''
-Code that gets audio stream from mic, converts to text using google API 
-and prints to stdout. 
+Code that gets audio stream from mic, converts to text using google API
+and prints to stdout.
 
-Code largely based on 
+Code largely based on
 https://github.com/googleapis/python-speech/blob/master/samples/microphone/transcribe_streaming_mic.py
 https://cloud.google.com/speech-to-text/docs/streaming-recognize#performing_streaming_speech_recognition_on_an_audio_stream
 
@@ -20,6 +20,7 @@ import pyaudio
 from six.moves import queue
 
 import os
+
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "text2vid-3d1ad0183321.json"
 
 # Audio recording parameters
@@ -110,7 +111,11 @@ def listen_print_loop(responses):
     the next result to overwrite it, until the response is a final one. For the
     final one, print a newline to preserve the finalized transcription.
     """
+
+    sentence_list = []
+    num_sentences = 0
     num_chars_printed = 0
+    punctuation_to_consider = '.'
     for response in responses:
         if not response.results:
             continue
@@ -118,7 +123,7 @@ def listen_print_loop(responses):
         # The `results` list is consecutive. For streaming, we only care about
         # the first result being considered, since once it's `is_final`, it
         # moves on to considering the next utterance.
-        print(response)
+        # print('\n'+response)
         result = response.results[0]
         if not result.alternatives:
             continue
@@ -134,13 +139,41 @@ def listen_print_loop(responses):
         overwrite_chars = " " * (num_chars_printed - len(transcript))
 
         if not result.is_final:
-            sys.stdout.write(transcript + overwrite_chars + "\r")
-            sys.stdout.flush()
+            # sys.stdout.write(transcript + overwrite_chars + "\r")
+            # sys.stdout.flush()
+            # print('Output from transcript:')
+            print(transcript)
+
+            split_at = transcript.split(punctuation_to_consider)
+            curr_num_sent = len(split_at)
+
+            # +1 so that actually a sentence happen. split also returns first substring even if no fullstop present.
+            # Also, Process this only if its finalized and next sentence starts
+
+            if (curr_num_sent > num_sentences + 1) and (split_at[-1] != ''):
+                to_add = split_at[num_sentences]
+                if to_add not in sentence_list:
+                    sentence_list.append(to_add)
+                    num_sentences += 1
+
+            print(sentence_list)
 
             num_chars_printed = len(transcript)
 
         else:
+            print('final:')
             print(transcript + overwrite_chars)
+
+            split_at = transcript.split(punctuation_to_consider)
+            # add last two sentences as they weren't added by previous loop, else add last one.
+            # happens when last sentence is short and instead of giving partial response google just sends final.
+            curr_num_sent = len(split_at) - 1 #-1 coz last will be a blank
+            for i in range(num_sentences, curr_num_sent, 1):
+                sentence_list.append(split_at[i])
+
+            print(sentence_list)
+            sentence_list = []
+            num_sentences = 0
 
             # Exit recognition if any of the transcribed phrases could be
             # one of our keywords.

@@ -100,7 +100,7 @@ def start_ffmpeg_process1_audio(in_filename):
 # process for writing output to http url by taking input from two FIFO pipes (video and audio)
 def start_ffmpeg_process2(fifo_name_video, fifo_name_audio, width, height, fps, port):
     logger.info('Starting ffmpeg process2')
-    video_format = "avi"  # format supporting both video and audio
+    video_format = 'avi' # format supporting both video and audio
     # (mp4 doesn't work because it requires random access not appropriate for streaming)
     server_url = "http://127.0.0.1:"+str(port) # any port should be fine, 127.0.0.1 is simply localhost
 
@@ -111,7 +111,7 @@ def start_ffmpeg_process2(fifo_name_video, fifo_name_audio, width, height, fps, 
     # combine the two and output to url (listen = 1 probably sets the server)
     args = (
         ffmpeg
-        .output(input_audio, input_video, server_url, listen=1, f=video_format)
+        .output(input_audio, input_video, server_url, listen=1, f=video_format,vcodec='libx264',preset='ultrafast')
         # .global_args('-fflags', 'nobuffer')        # .run()
         # .global_args('-ss', '4')
         .compile()

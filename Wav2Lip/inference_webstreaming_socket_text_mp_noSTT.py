@@ -1,21 +1,16 @@
-# merge of inference_webstreaming_socket_audio.py, tts_socket_server.py
-# run this code, then once model is loaded run the stt_stream_socket_client.py code on remote machine
-# finally run the ffplay command with the appropriate port forwarding etc. to see the results
-# Alternatively, at the client just run run_streaming_text.sh with the stt_stream_socket_client.py
-# and the json in same directory
-
+# Takes as input text file, and generates audio using google TTS to be used for generating video.
 '''
 Architecture: Thread 1 (text_input), Thread 2 (audio out), Thread 3 (video), Thread 4 (audio in).
 
-Thread 1: receive text packets from socket connection (with paragraphs separated by \n)
+Thread 1: receive text packets from file or socket (with paragraphs separated by \n)
           send text to google TTS API and receive the audio
           write audio to a queue read by thread 4
-Thread 2: receive audio packet from thread 1, generate video frames and send to ffmpeg process 
+Thread 2: receive audio packet from thread 1, generate video frames and send to ffmpeg process
           (using named pipe)
 Thread 3: receive audio packet from thread 1 and send to ffmpeg process (using named pipe)
-Thread 4: send generated audio to threads 2 & 3 using queue 
+Thread 4: send generated audio to threads 2 & 3 using queue
           keeps checking every 200ms if there is sufficient data to be played
-          in the input queue, if not it plays silence for the remaining time and 
+          in the input queue, if not it plays silence for the remaining time and
           transfer to threads 2 & 3 (using queue)
 '''
 
@@ -27,7 +22,9 @@ from glob import glob
 import torch, face_detection
 from models import Wav2Lip
 import platform
-import threading, queue
+import threading
+import multiprocessing
+import queue
 import subprocess
 import zipfile
 import os
@@ -40,9 +37,11 @@ import wave
 import logging
 import librosa
 import pyaudio
-import socket 
+import socket
+import zlib, gzip
+from io import BytesIO
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="../google_stt_tts/text2vid-3d1ad0183321.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "../google_stt_tts/text2vid-3d1ad0183321.json"
 from google.cloud import texttospeech
 
 sys.path.insert(1, 'util')
@@ -51,68 +50,84 @@ import ffmpeg_stream
 parser = argparse.ArgumentParser(description='Inference code to lip-sync videos in the wild using Wav2Lip models')
 
 parser.add_argument('--checkpoint_path', type=str,
-                                        help='Name of saved checkpoint to load weights from', required=True)
+                    help='Name of saved checkpoint to load weights from', required=True)
 
 parser.add_argument('--face', type=str,
-                                        help='Filepath of video/image that contains faces to use', required=True)
+                    help='Filepath of video/image that contains faces to use', required=True)
 
 parser.add_argument('--static', type=bool,
-                                        help='If True, then use only first video frame for inference', default=False)
+                    help='If True, then use only first video frame for inference', default=False)
 parser.add_argument('--fps', type=float, help='Can be specified only if input is a static image (default: 25)',
-                                        default=25., required=False)
+                    default=25., required=False)
 
 parser.add_argument('--pads', nargs='+', type=int, default=[0, 10, 0, 0],
-                                        help='Padding (top, bottom, left, right). Please adjust to include chin at least')
+                    help='Padding (top, bottom, left, right). Please adjust to include chin at least')
 
 parser.add_argument('--face_det_batch_size', type=int,
-                                        help='Batch size for face detection', default=16)
+                    help='Batch size for face detection', default=16)
 parser.add_argument('--wav2lip_batch_size', type=int, help='Batch size for Wav2Lip model(s)', default=128)
 
 parser.add_argument('--resize_factor', default=1, type=int,
-                                        help='Reduce the resolution by this factor. Sometimes, best results are obtained at 480p or 720p')
+                    help='Reduce the resolution by this factor. Sometimes, best results are obtained at 480p or 720p')
 
 parser.add_argument('--crop', nargs='+', type=int, default=[0, -1, 0, -1],
-                                        help='Crop video to a smaller region (top, bottom, left, right). Applied after resize_factor and rotate arg. '
-                                                 'Useful if multiple face present. -1 implies the value will be auto-inferred based on height, width')
+                    help='Crop video to a smaller region (top, bottom, left, right). Applied after resize_factor and rotate arg. '
+                         'Useful if multiple face present. -1 implies the value will be auto-inferred based on height, width')
 
 parser.add_argument('--box', nargs='+', type=int, default=[-1, -1, -1, -1],
-                                        help='Specify a constant bounding box for the face. Use only as a last resort if the face is not detected.'
-                                                 'Also, might work only if the face is not moving around much. Syntax: (top, bottom, left, right).')
+                    help='Specify a constant bounding box for the face. Use only as a last resort if the face is not detected.'
+                         'Also, might work only if the face is not moving around much. Syntax: (top, bottom, left, right).')
 
 parser.add_argument('--rotate', default=False, action='store_true',
-                                        help='Sometimes videos taken from a phone can be flipped 90deg. If true, will flip video right by 90deg.'
-                                                 'Use if you get a flipped result, despite feeding a normal looking video')
+                    help='Sometimes videos taken from a phone can be flipped 90deg. If true, will flip video right by 90deg.'
+                         'Use if you get a flipped result, despite feeding a normal looking video')
 
 parser.add_argument('--nosmooth', default=False, action='store_true',
-                                        help='Prevent smoothing face detections over a short temporal window')
+                    help='Prevent smoothing face detections over a short temporal window')
 
 # IP and Port for Video Streaming
-parser.add_argument("-i", "--ip", type=str, default="0.0.0.0", #172.24.92.25
-                help="ip address of the device")
+parser.add_argument("-i", "--ip", type=str, default="0.0.0.0",  # 172.24.92.25
+                    help="ip address of the device")
 parser.add_argument("-o", "--port", type=int, default=8080,
-                help="ephemeral port number of the server (1024 to 65535)")
+                    help="ephemeral port number of the server (1024 to 65535)")
 
-# Port for incoming text stream 
+# Input from file or stream
+parser.add_argument('-tif', '--text_input_from', required=True, choices=['file', 'socket'],
+                    help='whether to take input text from a file or if it will be streamed over a socket.')
+parser.add_argument('--text_file_path', default='None',
+                    help='path of text file to be converted')
+# Port for incoming text stream
 parser.add_argument('--text_port', default=50007, type=int,
-        help='Port for websocket server for text input (default: 50007)') # Arbitrary non-privileged port
+                    help='Port for websocket server for text input (default: 50007)')  # Arbitrary non-privileged port
+
 
 args = parser.parse_args()
 args.img_size = 96
 args.audio_sr = 16000
-args.BYTE_WIDTH = 2 # related to FORMAT (bytes/audio frame)
+args.BYTE_WIDTH = 2  # related to FORMAT (bytes/audio frame)
+
+text_input_from = args.text_input_from
+text_file_path = args.text_file_path
+
+# mel_step_size: size of each mel_chunk (except last one which can be shorter)
+# can't be made very small due to neural network architecture (should be > roughly 3)
+mel_step_size = 16
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print('Using {} for inference.'.format(device))
 
 # NUM_AUDIO_SAMPLES_PER_STEP: defines the chunks in which audio is processed.
 # Should be such that number of video frames within step is an integer
 # NOTE: Current system assumes 3200 (i.e., 200ms chunks)
 # NOTE: Can't make this much smaller, since that reduces the mel size to so small
 # that the mel_chunk produced is smaller than allowed by neural network architecture.
-NUM_AUDIO_SAMPLES_PER_STEP = np.ceil(args.audio_sr*0.2).astype('int') # 200 ms for 16000 Hz
+NUM_AUDIO_SAMPLES_PER_STEP = np.ceil(args.audio_sr * 0.2).astype('int')  # 200 ms for 16000 Hz
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 if os.path.isfile(args.face) and args.face.split('.')[1] in ['jpg', 'png', 'jpeg']:
     args.static = True
+
 
 def get_smoothened_boxes(boxes, T):
     for i in range(len(boxes)):
@@ -122,6 +137,7 @@ def get_smoothened_boxes(boxes, T):
             window = boxes[i: i + T]
         boxes[i] = np.mean(window, axis=0)
     return boxes
+
 
 def face_detect(images):
     detector = face_detection.FaceAlignment(face_detection.LandmarksType._2D,
@@ -164,6 +180,7 @@ def face_detect(images):
     del detector
     return results
 
+
 def face_detect_wrapper(frames):
     if args.box[0] == -1:
         if not args.static:
@@ -176,12 +193,13 @@ def face_detect_wrapper(frames):
         face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in frames]
     return face_det_results
 
+
 def datagen(frames, face_det_results, mels, start_frame_idx):
     # start frame idx is the current frame idx in the output video
     # we start from this point
     img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
 
-    start_frame_idx = start_frame_idx%len(frames) # loop back
+    start_frame_idx = start_frame_idx % len(frames)  # loop back
     num_frames = len(mels)
     # take frames from start_frame_idx to start_frame_idx+num_frames
     # wrapping around if necessary
@@ -190,11 +208,12 @@ def datagen(frames, face_det_results, mels, start_frame_idx):
             frames_current = frames
             face_det_results_current = face_det_results
         if start_frame_idx + num_frames > len(frames):
-            frames_current = frames[start_frame_idx:] + frames[:start_frame_idx + num_frames-len(frames)]
-            face_det_results_current = face_det_results[start_frame_idx:] + face_det_results[:start_frame_idx + num_frames-len(frames)]
+            frames_current = frames[start_frame_idx:] + frames[:start_frame_idx + num_frames - len(frames)]
+            face_det_results_current = face_det_results[start_frame_idx:] + face_det_results[
+                                                                            :start_frame_idx + num_frames - len(frames)]
         else:
-            frames_current = frames[start_frame_idx:start_frame_idx+num_frames]
-            face_det_results_current = face_det_results[start_frame_idx:start_frame_idx+num_frames]
+            frames_current = frames[start_frame_idx:start_frame_idx + num_frames]
+            face_det_results_current = face_det_results[start_frame_idx:start_frame_idx + num_frames]
 
     else:
         frames_current = frames
@@ -235,12 +254,6 @@ def datagen(frames, face_det_results, mels, start_frame_idx):
 
         yield img_batch, mel_batch, frame_batch, coords_batch
 
-# mel_step_size: size of each mel_chunk (except last one which can be shorter)
-# can't be made very small due to neural network architecture (should be > roughly 3)
-mel_step_size = 16
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Using {} for inference.'.format(device))
-
 
 def _load(checkpoint_path):
     if device == 'cuda':
@@ -265,75 +278,116 @@ def load_model(path):
     return model.eval()
 
 
-def text_input_thread_handler(audio_packet_queue, start_audio_input_thread, kill_audio_input_thread):
+def text_input_thread_handler(text_input_from, audio_packet_queue, start_audio_input_thread, kill_audio_input_thread,
+                              text_file_path):
+    compressed = False
+
     # Instantiates a client
     client = texttospeech.TextToSpeechClient()
 
     # Build the voice request, select the language code ("en-US") and the ssml
     # voice gender ("female")
     voice = texttospeech.VoiceSelectionParams(
-    language_code='en-US',
-    name='en-IN-Wavenet-B',
-    ssml_gender=texttospeech.SsmlVoiceGender.MALE)
+        language_code='en-US',
+        name='en-IN-Wavenet-B',
+        ssml_gender=texttospeech.SsmlVoiceGender.MALE)
 
     # Select the type of audio file you want returned
     audio_config = texttospeech.AudioConfig(
-    audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-    sample_rate_hertz=args.audio_sr,speaking_rate=1.0, pitch=5)
-    HOST = ''                 # Symbolic name meaning all available interfaces
-    # Set up websocket server and listen for connections
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((HOST, args.text_port))
-    print ('Listening for incoming connection on port',args.text_port)
-    s.listen(1)
-    conn, addr = s.accept()
-    print ('Connected by', addr)
-    start_audio_input_thread.set()
-    while True:
-        line = b''
-        conn_closed = False
-        while True: # recv till newline
-            # socket.MSG_WAITALL: this parameter ensures we wait till sufficient data received
-            byte = conn.recv(1,socket.MSG_WAITALL)
-            # reading one byte at a time: not efficient! 
-            # http://developerweb.net/viewtopic.php?id=4006 has some suggestions
-            if byte == b'\n':
-                break
-            elif len(byte) == 0:
-                conn_closed = True
-                break
+        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+        sample_rate_hertz=args.audio_sr, speaking_rate=1.0, pitch=5)
+
+    if text_input_from == 'socket':
+        HOST = ''  # Symbolic name meaning all available interfaces
+        # Set up websocket server and listen for connections
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind((HOST, args.text_port))
+        print('Listening for incoming connection on port', args.text_port)
+        s.listen(1)
+        conn, addr = s.accept()
+        print('Connected by', addr)
+        start_audio_input_thread.set()
+        while True:
+            if not compressed:
+                # Old logic of byte by byte read:
+                conn_closed = False
+                line = b''
+                while True:  # recv till newline
+                    # socket.MSG_WAITALL: this parameter ensures we wait till sufficient data received
+                    byte = conn.recv(1, socket.MSG_WAITALL)
+                    print(byte)
+                    # reading one byte at a time: not efficient!
+                    # http://developerweb.net/viewtopic.php?id=4006 has some suggestions
+                    if byte == b'\n':
+                        break
+                    elif len(byte) == 0:
+                        conn_closed = True
+                        break
+                    else:
+                        line += byte
+
             else:
-                line += byte
-        if conn_closed:
-            break
-        
-        line = line.decode(encoding='UTF-8')
-        line = line.rstrip()
-        print("Input text:",line)
+                # # New logic using compressed stream
+                recvd_compr = conn.recv(1024)
 
-        # Perform the text-to-speech request on the text input with the selected
-        # voice parameters and audio file type
+                if len(recvd_compr) == 0:
+                    break
 
-        # Set the text input to be synthesized
-        print('Synthesizing Audio')
-        synthesis_input = texttospeech.SynthesisInput(text=line)
+                print('Compressed')
+                print(recvd_compr)
+                print('Length of data transmitted: ' + str(len(recvd_compr)))
 
-        response = client.synthesize_speech(
-        input=synthesis_input, voice=voice, audio_config=audio_config
-        )
-        audio_bytes = response.audio_content[44:] # header of length 44 at the start
-        print('Audio Synthesized')
-        audio_packet_queue.put(audio_bytes)
+                z = zlib.decompressobj()
+                line = z.decompress(recvd_compr) + z.flush()
+
+                print('Decompressed')
+                print(line)
+
+            line = line.decode(encoding='UTF-8')
+            line = line.rstrip()
+            print("Input text:", line)
+
+            # Perform the text-to-speech request on the text input with the selected
+            # voice parameters and audio file type
+
+            # Set the text input to be synthesized
+            print('Synthesizing Audio')
+            synthesis_input = texttospeech.SynthesisInput(text=line)
+
+            response = client.synthesize_speech(
+                input=synthesis_input, voice=voice, audio_config=audio_config
+            )
+            audio_bytes = response.audio_content[44:]  # header of length 44 at the start
+            print('Audio Synthesized')
+            audio_packet_queue.put(audio_bytes)
+    elif text_input_from == 'file':
+        start_audio_input_thread.set()
+        with open(text_file_path) as f:
+            for line in f:
+                line = line.rstrip()
+                print("Input text: " + line)
+
+                # Set the text input to be synthesized
+                print('Synthesizing Audio')
+                synthesis_input = texttospeech.SynthesisInput(text=line)
+
+                response = client.synthesize_speech(
+                    input=synthesis_input, voice=voice, audio_config=audio_config
+                )
+                audio_bytes = response.audio_content[44:]  # header of length 44 at the start
+                print('Audio Synthesized')
+                audio_packet_queue.put(audio_bytes)
     kill_audio_input_thread.set()
-    
 '''
 function to set up input audio connection, write output to queues
 '''
+
+
 def audio_input_thread_handler(inqueue, outqueues, start_audio_input_thread, kill_audio_input_thread):
-    # we work in 200 ms chunks 
+    # we work in 200 ms chunks
     time_per_write = 0.2
     current_audio_packet_data = b''
-    desired_len = args.BYTE_WIDTH*NUM_AUDIO_SAMPLES_PER_STEP
+    desired_len = args.BYTE_WIDTH * NUM_AUDIO_SAMPLES_PER_STEP
     # block till we have start_audio_input_thread event (set when connection to peer established)
     while not start_audio_input_thread.is_set():
         pass
@@ -347,18 +401,21 @@ def audio_input_thread_handler(inqueue, outqueues, start_audio_input_thread, kil
             audio_bytes_to_write = current_audio_packet_data[:desired_len]
             current_audio_packet_data = current_audio_packet_data[desired_len:]
         else:
-            audio_bytes_to_write = current_audio_packet_data + bytearray(desired_len-len(current_audio_packet_data))
+            audio_bytes_to_write = current_audio_packet_data + bytearray(desired_len - len(current_audio_packet_data))
             current_audio_packet_data = b''
         for q in outqueues:
             q.put(audio_bytes_to_write)
         if kill_audio_input_thread.is_set() and len(current_audio_packet_data) == 0:
             break
-        time.sleep(time_per_write-time.time()+start_time)
+        time.sleep(time_per_write - time.time() + start_time)
+
 
 '''
 receive audio from audio_inqueue and write to fifo_filename_audio pipe in
 chunks
 '''
+
+
 def audio_thread_handler(fifo_filename_audio, audio_inqueue):
     fifo_audio_out = open(fifo_filename_audio, "wb")
     # this blocks until the read for the fifo opens so we run in separate thread
@@ -411,6 +468,7 @@ def preprocess_video():
 
     return full_frames
 
+
 def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
     # Get frames from input video
     full_frames = preprocess_video()
@@ -437,8 +495,6 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
     # NOTE: The value has been chosen for fps=25, and NUM_AUDIO_SAMPLES_PER_STEP 3200. For other values, please recalculate
     mel_idx_multiplier = 15.0 / args.fps
 
-
-
     model = load_model(args.checkpoint_path)
     print("Model loaded")
 
@@ -453,10 +509,10 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
     frames_done = 0
     audio_received = 0.0
     audio_data = audio_inqueue.get()
-    while len(audio_data) == NUM_AUDIO_SAMPLES_PER_STEP*args.BYTE_WIDTH:
+    while len(audio_data) == NUM_AUDIO_SAMPLES_PER_STEP * args.BYTE_WIDTH:
         # break when exactly desired length not received (so very last packet might be lost)
-        audio_received += NUM_AUDIO_SAMPLES_PER_STEP/args.audio_sr
-        curr_wav = librosa.util.buf_to_float(audio_data,n_bytes=args.BYTE_WIDTH) # convert to float
+        audio_received += NUM_AUDIO_SAMPLES_PER_STEP / args.audio_sr
+        curr_wav = librosa.util.buf_to_float(audio_data, n_bytes=args.BYTE_WIDTH)  # convert to float
         #       print(curr_wav.shape)
         #       print('start:',audio_step*NUM_AUDIO_SAMPLES_PER_STEP)
         #       print('end:',(audio_step+1)*NUM_AUDIO_SAMPLES_PER_STEP)
@@ -466,7 +522,7 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
 
         if np.isnan(mel.reshape(-1)).sum() > 0:
             raise ValueError(
-                    'Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
+                'Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
 
         # mel_chunk generation process. Generate overlapping chunks, with the shift in
         # chunks determined by int(i * mel_idx_multiplier), and the chunk length is
@@ -496,7 +552,7 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
             mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(device)
 
             with torch.no_grad():
-                    pred = model(mel_batch, img_batch)
+                pred = model(mel_batch, img_batch)
 
             pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
 
@@ -511,14 +567,13 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
                 # write generated frame to video writer (note: no audio right now)
                 # out.write(f)
                 out_frame_BGR = f.copy()
-                out_frame_RGB = out_frame_BGR[:,:,[2,1,0]]
+                out_frame_RGB = out_frame_BGR[:, :, [2, 1, 0]]
                 frames_done += 1
 
                 # write to pipe
                 ffmpeg_stream.write_video_frame(fifo_video_out, out_frame_RGB)
-        print('Generated',frames_done,'frames from','{:.1f}'.format(audio_received),'s of received audio', end='\r')
+        print('Generated', frames_done, 'frames from', '{:.1f}'.format(audio_received), 's of received audio', end='\r')
         audio_data = audio_inqueue.get()
-
 
     print()
     fifo_video_out.close()
@@ -530,7 +585,6 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
 
 
 def stream():
-
     width, height = ffmpeg_stream.get_video_info(args.face)
 
     # fifo pipes (remove file name if already exists)
@@ -545,22 +599,23 @@ def stream():
     os.mkfifo(fifo_filename_audio)
     logger.info('fifo exists now')
 
-    process2 = ffmpeg_stream.start_ffmpeg_process2(fifo_filename_video, fifo_filename_audio, width, height, args.fps, args.port)
+    process2 = ffmpeg_stream.start_ffmpeg_process2(fifo_filename_video, fifo_filename_audio, width, height, args.fps,
+                                                   args.port)
     logger.info('Output pipe set')
 
     ######## OLD CODE: NOW REPLACED BY SIMPLER QUEUE BASED SYSTEM
-    # # set up pipes to transfer audio received from audio socket connection in audio_input_thread_handler 
+    # # set up pipes to transfer audio received from audio socket connection in audio_input_thread_handler
     # # to audio_thread_handler and video_thread_handler
     # audio_inpipe_audio_thread, audio_outpipe_audio_thread = os.pipe()
     # audio_inpipe_video_thread, audio_outpipe_video_thread = os.pipe()
 
-    # # The old code led to deadlock 
+    # # The old code led to deadlock
     # # ffmpeg was still reading the initial audio and hence the video writer to ffmpeg was blocked.
     # # Since the video thread was blocked on the write_video_frame, it wasn’t reading the next audio frame
     # # Since the video thread wasn’t reading the next audio frame, the thread receiving audio from network and writing the audio to both audio & video handlers was blocked.
     # # So the audio handler was not receiving any new audio from the thread receiving audio from network
     # # Thus ffmpeg was stuck trying to get more audio from audio handler
-    # # The underlying reason is that the pipes have limited capacity and so the writer (specifically in third point) was blocked. 
+    # # The underlying reason is that the pipes have limited capacity and so the writer (specifically in third point) was blocked.
     # # When I increased the capacity of the pipe to 1 MB using code from https://programtalk.com/python-examples/fcntl.F_SETPIPE_SZ/, it starts working correctly.
 
     # fcntl.F_SETPIPE_SZ = 1031
@@ -572,30 +627,34 @@ def stream():
 
     # queues for sending audio packets from T1 to T2 and T3
     # unlimited capacity
-    audio_packet_queue_T2 = queue.Queue()
-    audio_packet_queue_T3 = queue.Queue()
+    audio_packet_queue_T2 = multiprocessing.Queue()
+    audio_packet_queue_T3 = multiprocessing.Queue()
 
     # queue for sending generated audio from T4 to T1
     # unlimited capacity
-    audio_packet_queue_T4 = queue.Queue()
+    audio_packet_queue_T4 = multiprocessing.Queue()
 
     # we run audio and video in separate threads otherwise the fifo opening blocks
     outqueue_list = [audio_packet_queue_T2, audio_packet_queue_T3]
-    
-    start_audio_input_thread = threading.Event() # set in T4 to start T1 execution
-    kill_audio_input_thread = threading.Event() # set in T4 to stop T1 execution
+
+    start_audio_input_thread = multiprocessing.Event()  # set in T4 to start T1 execution
+    kill_audio_input_thread = multiprocessing.Event()  # set in T4 to stop T1 execution
 
     # create threads
-    audio_input_thread = threading.Thread(target=audio_input_thread_handler, \
-                    args=(audio_packet_queue_T4,outqueue_list,start_audio_input_thread,kill_audio_input_thread))
+    audio_input_thread = multiprocessing.Process(target=audio_input_thread_handler, \
+                                          args=(audio_packet_queue_T4, outqueue_list, start_audio_input_thread,
+                                                kill_audio_input_thread))
     logger.info('T1: Audio input thread launched')
-    video_thread = threading.Thread(target=txt2vid_inference,args=(fifo_filename_video, \
-                                                                audio_packet_queue_T2, width, height))
+    video_thread = threading.Thread(target=txt2vid_inference, args=(fifo_filename_video, \
+                                                                    audio_packet_queue_T2, width, height))
     logger.info('T2: Video thread launched')
-    audio_thread = threading.Thread(target=audio_thread_handler,args=(fifo_filename_audio, \
-                                                                audio_packet_queue_T3))
+    audio_thread = multiprocessing.Process(target=audio_thread_handler, args=(fifo_filename_audio, \
+                                                                       audio_packet_queue_T3))
     logger.info('T3: Audio thread launched')
-    text_thread = threading.Thread(target=text_input_thread_handler,args=(audio_packet_queue_T4,start_audio_input_thread,kill_audio_input_thread))
+    text_thread = multiprocessing.Process(target=text_input_thread_handler,
+                                   args=(text_input_from,
+                                         audio_packet_queue_T4, start_audio_input_thread, kill_audio_input_thread,
+                                         text_file_path))
     logger.info('T4: Text input thread launched')
 
     # start threads
@@ -621,5 +680,6 @@ def stream():
 def main():
     stream()
 
+
 if __name__ == '__main__':
-        main()
+    main()
