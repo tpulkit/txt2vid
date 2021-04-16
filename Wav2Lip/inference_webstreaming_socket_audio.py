@@ -9,6 +9,8 @@ Thread 1: receive audio packets from socket connection and transfer to threads 2
 Thread 2: receive audio packet from thread 1, generate video frames and send to ffmpeg process (using named pipe)
 Thread 3: receive audio packet from thread 1 and send to ffmpeg process (using named pipe)
 '''
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
 
 import numpy as np
 import scipy, cv2, os, sys, argparse, audio
@@ -21,7 +23,6 @@ import platform
 import threading, queue
 import subprocess
 import zipfile
-import os
 import argparse
 import ffmpeg
 import datetime

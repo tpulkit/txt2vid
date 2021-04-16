@@ -18,6 +18,8 @@ Thread 4: send generated audio to threads 2 & 3 using queue
           in the input queue, if not it plays silence for the remaining time and 
           transfer to threads 2 & 3 (using queue)
 '''
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
 
 import numpy as np
 import scipy, cv2, os, sys, argparse, audio
@@ -30,7 +32,6 @@ import platform
 import threading, queue
 import subprocess
 import zipfile
-import os
 import argparse
 import ffmpeg
 import datetime
