@@ -316,7 +316,7 @@ def text_input_thread_handler(text_input_from, audio_packet_queue, start_audio_i
                 while True:  # recv till newline
                     # socket.MSG_WAITALL: this parameter ensures we wait till sufficient data received
                     byte = conn.recv(1, socket.MSG_WAITALL)
-                    print(byte)
+                    # print(byte)
                     # reading one byte at a time: not efficient!
                     # http://developerweb.net/viewtopic.php?id=4006 has some suggestions
                     if byte == b'\n':

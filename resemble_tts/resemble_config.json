@@ -3,12 +3,22 @@
     "Pulkit Tandon": {
       "name": "Pulkit Tandon",
       "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
-      "voice_id": "89423c90"
+      "voice_id": "4f4e5355"
     },
     "Shubham Chandak": {
       "name": "Shubham Chandak",
       "token": "bmiDPJQ9tihnxiN7xN4vKwtt",
       "voice_id": "97454fed"
+    },
+    "Winston Churchill": {
+      "name": "WinstonChurchill-SM",
+      "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
+      "voice_id": "48c12634"
+    },
+    "Albert Einstein": {
+      "name": "AE0607",
+      "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
+      "voice_id": "aa757e92"
     }
   },
   "project_uuid": "e89aa5c3"

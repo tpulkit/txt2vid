@@ -79,7 +79,7 @@ parser.add_argument('--nosmooth', default=False, action='store_true',
 # IP and Port for Video Streaming
 parser.add_argument("-i", "--ip", type=str, default="0.0.0.0", #172.24.92.25
                 help="ip address of the device")
-parser.add_argument("-o", "--port", type=int, default=8080,
+parser.add_argument("-o", "--port", type=int, default=8081,
                 help="ephemeral port number of the server (1024 to 65535)")
 
 # Port for incoming audio stream 
