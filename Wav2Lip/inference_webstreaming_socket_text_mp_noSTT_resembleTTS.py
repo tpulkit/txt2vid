@@ -100,6 +100,12 @@ parser.add_argument('--text_file_path', default='None',
 parser.add_argument('--text_port', default=50007, type=int,
                     help='Port for websocket server for text input (default: 50007)')  # Arbitrary non-privileged port
 
+# Output to file or stream
+parser.add_argument('-vot', '--video_output_to', default='socket', choices=['file', 'socket'],
+                    help='whether to write output video to a file or if it will be streamed over a socket.')
+parser.add_argument('--video_file_out', default='None',
+                    help='video file to be written')
+
 # Arguments for text-generation by resembles
 parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="Pulkit Tandon")
 parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", default="None",
@@ -129,6 +135,10 @@ user_voice = resemble_config_data['users'][user]['voice_id']
 
 text_input_from = args.text_input_from
 text_file_path = args.text_file_path
+
+# ToDo: implement saving to file
+video_output_to = args.video_output_to
+video_output_path = args.video_file_out
 
 # NUM_AUDIO_SAMPLES_PER_STEP: defines the chunks in which audio is processed.
 # Should be such that number of video frames within step is an integer
@@ -667,7 +677,7 @@ def stream():
     logger.info('fifo exists now')
 
     process2 = ffmpeg_stream.start_ffmpeg_process2(fifo_filename_video, fifo_filename_audio, width, height, args.fps,
-                                                   args.port)
+                                                   args.port, video_output_to, video_output_path)
     logger.info('Output pipe set')
 
     ######## OLD CODE: NOW REPLACED BY SIMPLER QUEUE BASED SYSTEM

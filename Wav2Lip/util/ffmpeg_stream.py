@@ -98,24 +98,38 @@ def start_ffmpeg_process1_audio(in_filename):
     return subprocess.Popen(args, stdout=subprocess.PIPE)
 
 # process for writing output to http url by taking input from two FIFO pipes (video and audio)
-def start_ffmpeg_process2(fifo_name_video, fifo_name_audio, width, height, fps, port):
+def start_ffmpeg_process2(fifo_name_video, fifo_name_audio, width, height, fps, port,
+                          output_to='socket', output_path='None'):
     logger.info('Starting ffmpeg process2')
-    video_format = 'avi' # format supporting both video and audio
+    video_format = 'avi' #'h264' #"avi"  # format supporting both video and audio
     # (mp4 doesn't work because it requires random access not appropriate for streaming)
     server_url = "http://127.0.0.1:"+str(port) # any port should be fine, 127.0.0.1 is simply localhost
 
     # inputs: parameters largely the same as in the previous two functions
     input_video = ffmpeg.input(fifo_name_video, format='rawvideo', pix_fmt='rgb24', s='{}x{}'.format(width, height), framerate=fps)
+    # input_video = ffmpeg.input(fifo_name_video, format='h264', pix_fmt='rgb24', s='{}x{}'.format(width, height), framerate=fps)
     input_audio = ffmpeg.input(fifo_name_audio, format='s16le', acodec='pcm_s16le', ac=1, ar='16k')
 
-    # combine the two and output to url (listen = 1 probably sets the server)
-    args = (
-        ffmpeg
-        .output(input_audio, input_video, server_url, listen=1, f=video_format,vcodec='libx264',preset='ultrafast')
-        # .global_args('-fflags', 'nobuffer')        # .run()
-        # .global_args('-ss', '4')
-        .compile()
-    )
+    if output_to == 'socket':
+        # combine the two and output to url (listen = 1 probably sets the server)
+        args = (
+            ffmpeg
+            .output(input_audio, input_video, server_url, listen=1, f=video_format,vcodec='libx264',preset='ultrafast')
+            # .global_args('-fflags', 'nobuffer')        # .run()
+            # .global_args('-ss', '4')
+            # .global_args('-preset', 'ultrafast')
+            .compile()
+        )
+    elif output_to == 'file':
+        if output_path == 'None':
+            raise ValueError('Asked to rite in file but path not provided.')
+        args = (
+            ffmpeg
+            .output(input_audio, input_video, output_path, f=video_format,vcodec='libx264',preset='ultrafast')
+            .compile()
+        )
+    else:
+        raise ValueError("Wrong output format.")
     return subprocess.Popen(args)
 
 # read frame from process1 stdout pipe and convert to numpy
