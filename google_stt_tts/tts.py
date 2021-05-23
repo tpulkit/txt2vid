@@ -31,25 +31,26 @@ import sys
 import ffmpeg
 import subprocess 
 
-if len(sys.argv) != 2:
-    print("Usage: python tts.py textFile")
+if len(sys.argv) != 3:
+    print("Usage: python tts.py textFile outFile")
     sys.exit(1)
 
 txtfile = sys.argv[1]
+outfile = sys.argv[2]
 
 # process for writing output to http url by taking input from audio pipe
-def start_ffmpeg_process(fps, port=8080):
+def start_ffmpeg_process(fps, outfile):
     out_format = "avi"  # format supporting audio
-    server_url = "http://127.0.0.1:"+str(port) # any port should be fine, 127.0.0.1 is simply localhost
+    # server_url = "http://127.0.0.1:"+str(port) # any port should be fine, 127.0.0.1 is simply localhost
 
     # inputs: parameters largely the same as in the previous two functions
     input_audio = ffmpeg.input('pipe:', format='s16le', acodec='pcm_s16le', ac=1, ar=str(fps))
 	
-    outfile = "tmp.wav"
     # combine the two and output to url (listen = 1 probably sets the server)
     args = (
         ffmpeg
         .output(input_audio,outfile)#input_audio, server_url, listen=1, f=out_format)
+        .global_args('-y')
         .compile()
     )
     return subprocess.Popen(args, stdin=subprocess.PIPE)
@@ -70,9 +71,9 @@ fps = 44100
 # Select the type of audio file you want returned
 audio_config = texttospeech.AudioConfig(
 audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-sample_rate_hertz=fps,speaking_rate=1.1, pitch=5)
+sample_rate_hertz=fps)
 
-ffmpeg_process = start_ffmpeg_process(fps)
+ffmpeg_process = start_ffmpeg_process(fps, outfile)
 
 with open(txtfile) as f:
     for line in f:

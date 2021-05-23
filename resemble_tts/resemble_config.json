@@ -1,13 +1,13 @@
 {
   "users": {
-    "Pulkit Tandon": {
+    "Pulkit": {
       "name": "Pulkit Tandon",
       "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
       "voice_id": "4f4e5355"
     },
-    "Shubham Chandak": {
+    "Shubham": {
       "name": "Shubham Chandak",
-      "token": "bmiDPJQ9tihnxiN7xN4vKwtt",
+      "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
       "voice_id": "97454fed"
     },
     "Winston Churchill": {
@@ -19,6 +19,26 @@
       "name": "AE0607",
       "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
       "voice_id": "aa757e92"
+    },
+    "Pat": {
+      "name": "Pat",
+      "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
+      "voice_id": "c7122f4c"
+    },
+    "Anesu": {
+      "name": "anesu_resemble",
+      "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
+      "voice_id": "256d9cc2"
+    },
+    "Yimeng": {
+      "name": "Yimeng",
+      "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
+      "voice_id": "bc03ba73"
+    },
+    "Misha": {
+      "name": "First Test Clone",
+      "token": "RMzTNK7fdrYyAFKJ7Nrjagtt",
+      "voice_id": "fee1a418"
     }
   },
   "project_uuid": "e89aa5c3"
