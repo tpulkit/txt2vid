@@ -12,3 +12,8 @@ deepvoice3*
 resemble_tts/results*
 resemble_tts/sample_data*
 huggingface*
+Audio-driven*
+dataset/*
+!dataset/*.sh
+!dataset/*.py
+subjective_study/*
