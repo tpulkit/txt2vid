@@ -407,6 +407,8 @@ def audio_input_thread_handler(inqueue, outqueues, start_audio_input_thread, kil
         for q in outqueues:
             q.put(audio_bytes_to_write)
         if kill_audio_input_thread.is_set() and len(current_audio_packet_data) == 0:
+            for q in outqueues:
+                q.put('BREAK')
             break
         time.sleep(time_per_write - time.time() + start_time)
 
@@ -424,7 +426,9 @@ def audio_thread_handler(fifo_filename_audio, audio_inqueue):
     # read frame one by one, process and write to fifo pipe
     while True:
         in_audio_frame = audio_inqueue.get()
-        if len(in_audio_frame) == 0:
+        # if len(in_audio_frame) == 0:
+        #     break
+        if in_audio_frame == 'BREAK':
             break
         ffmpeg_stream.write_audio_frame(fifo_audio_out, in_audio_frame)
     fifo_audio_out.close()
@@ -575,9 +579,17 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
                 ffmpeg_stream.write_video_frame(fifo_video_out, out_frame_RGB)
         print('Generated', frames_done, 'frames from', '{:.1f}'.format(audio_received), 's of received audio', end='\r')
         audio_data = audio_inqueue.get()
+        print(len(audio_data))
 
-    print()
-    fifo_video_out.close()
+        if audio_data == 'BREAK':
+            print("=" * 50)
+            print('Closing Fifo Video')
+            print("=" * 50)
+            fifo_video_out.close()
+            break
+
+    # print()
+    # fifo_video_out.close()
     # out.release()
 
     # # combine original audio and generated video

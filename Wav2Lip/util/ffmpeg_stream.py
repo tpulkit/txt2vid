@@ -49,13 +49,13 @@ import subprocess
 import zipfile
 import threading
 
-
 parser = argparse.ArgumentParser(description='Example streaming ffmpeg numpy processing')
 parser.add_argument('in_filename', help='Input filename')
 parser.add_argument('port', default=8080, help='Port')
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
 
 # get video frame size using ffmpeg probe
 def get_video_info(filename):
@@ -67,20 +67,21 @@ def get_video_info(filename):
     height = int(video_info['height'])
     return width, height
 
+
 # this is process for reading video file and outputting in raw frames to pipe
 # we specify fps here which automatically converts the fps to the desired vale
 def start_ffmpeg_process1(in_filename, fps):
     logger.info('Starting ffmpeg process1')
     args = (
         ffmpeg
-        .input(in_filename)
-        .output('pipe:', format='rawvideo', pix_fmt='rgb24', r=fps)
-        .compile()
+            .input(in_filename)
+            .output('pipe:', format='rawvideo', pix_fmt='rgb24', r=fps)
+            .compile()
     )
     # all ffmpeg commands are ultimately run as subprocesses with appropriate piping for stdout
     # the 'pipe:' in the output above means the output is written to stdout, which we redirect to 
     # subprocess.PIPE
-    return subprocess.Popen(args, stdout=subprocess.PIPE) 
+    return subprocess.Popen(args, stdout=subprocess.PIPE)
 
 
 # this is process for reading audio file and outputting to pipe
@@ -91,46 +92,51 @@ def start_ffmpeg_process1_audio(in_filename):
     logger.info('Starting ffmpeg process1_audio')
     args = (
         ffmpeg
-        .input(in_filename)
-        .output('pipe:', format='s16le', acodec='pcm_s16le', ac=1, ar='16k')
-        .compile()
+            .input(in_filename)
+            .output('pipe:', format='s16le', acodec='pcm_s16le', ac=1, ar='16k')
+            .compile()
     )
     return subprocess.Popen(args, stdout=subprocess.PIPE)
+
 
 # process for writing output to http url by taking input from two FIFO pipes (video and audio)
 def start_ffmpeg_process2(fifo_name_video, fifo_name_audio, width, height, fps, port,
                           output_to='socket', output_path='None'):
     logger.info('Starting ffmpeg process2')
-    video_format = 'avi' #'h264' #"avi"  # format supporting both video and audio
-    # (mp4 doesn't work because it requires random access not appropriate for streaming)
-    server_url = "http://127.0.0.1:"+str(port) # any port should be fine, 127.0.0.1 is simply localhost
+    server_url = "http://127.0.0.1:" + str(port)  # any port should be fine, 127.0.0.1 is simply localhost
 
     # inputs: parameters largely the same as in the previous two functions
-    input_video = ffmpeg.input(fifo_name_video, format='rawvideo', pix_fmt='rgb24', s='{}x{}'.format(width, height), framerate=fps)
-    # input_video = ffmpeg.input(fifo_name_video, format='h264', pix_fmt='rgb24', s='{}x{}'.format(width, height), framerate=fps)
+    input_video = ffmpeg.input(fifo_name_video, format='rawvideo', pix_fmt='rgb24', s='{}x{}'.format(width, height),
+                               framerate=fps)
     input_audio = ffmpeg.input(fifo_name_audio, format='s16le', acodec='pcm_s16le', ac=1, ar='16k')
 
     if output_to == 'socket':
+        # (mp4 doesn't work because it requires random access not appropriate for streaming)
+        video_format = 'avi'  # format supporting both video and audio.
+
         # combine the two and output to url (listen = 1 probably sets the server)
         args = (
             ffmpeg
-            .output(input_audio, input_video, server_url, listen=1, f=video_format,vcodec='libx264',preset='ultrafast')
-            # .global_args('-fflags', 'nobuffer')        # .run()
-            # .global_args('-ss', '4')
-            # .global_args('-preset', 'ultrafast')
-            .compile()
+                .output(input_audio, input_video, server_url, listen=1, f=video_format, vcodec='libx264',
+                        preset='ultrafast')
+                # .global_args('-fflags', 'nobuffer')        # .run()
+                # .global_args('-ss', '4')
+                # .global_args('-preset', 'ultrafast')
+                .compile()
         )
     elif output_to == 'file':
+        video_format = 'mp4'
         if output_path == 'None':
-            raise ValueError('Asked to rite in file but path not provided.')
+            raise ValueError('Asked to write in file but path not provided.')
         args = (
             ffmpeg
-            .output(input_audio, input_video, output_path, f=video_format,vcodec='libx264',preset='ultrafast')
-            .compile()
+                .output(input_audio, input_video, output_path, f=video_format, vcodec='libx264', preset='ultrafast')
+                .compile()
         )
     else:
-        raise ValueError("Wrong output format.")
+        raise ValueError("Wrong output format. Should be 'socket' or 'file'.")
     return subprocess.Popen(args)
+
 
 # read frame from process1 stdout pipe and convert to numpy
 def read_frame(process1, width, height):
@@ -145,10 +151,11 @@ def read_frame(process1, width, height):
         assert len(in_bytes) == frame_size
         frame = (
             np
-            .frombuffer(in_bytes, np.uint8)
-            .reshape([height, width, 3])
+                .frombuffer(in_bytes, np.uint8)
+                .reshape([height, width, 3])
         )
     return frame
+
 
 # read audio frame from process1_audio stdout pipe
 def read_audio_frame(process1_audio, num_bytes):
@@ -157,27 +164,31 @@ def read_audio_frame(process1_audio, num_bytes):
     in_bytes = process1_audio.stdout.read(num_bytes)
     return in_bytes
 
+
 # darken frame
 def process_frame_simple(frame):
     '''Simple processing example: darken frame.'''
     return frame * 0.3
+
 
 # write video frame to fifo pipe as bytes
 def write_video_frame(fifo_video_out, frame):
     logger.debug('Writing frame')
     fifo_video_out.write(
         frame
-        .astype(np.uint8)
-        .tobytes()
+            .astype(np.uint8)
+            .tobytes()
     )
+
 
 # write audio frame to fifo pipe as bytes
 def write_audio_frame(fifo_audio_out, in_audio_frame):
     logger.debug('Writing audio frame')
     fifo_audio_out.write(in_audio_frame)
 
+
 def video_thread_handler(fifo_filename_video, process1, width, height):
-    fifo_video_out = open(fifo_filename_video, "wb") 
+    fifo_video_out = open(fifo_filename_video, "wb")
     # this blocks until the read for the fifo opens so we run in separate thread
 
     # read frame one by one, process and write to fifo pipe
@@ -192,6 +203,7 @@ def video_thread_handler(fifo_filename_video, process1, width, height):
         write_video_frame(fifo_video_out, out_frame)
     fifo_video_out.close()
 
+
 def audio_thread_handler(fifo_filename_audio, process1_audio, audio_bytes_per_video_frame):
     fifo_audio_out = open(fifo_filename_audio, "wb")
     # this blocks until the read for the fifo opens so we run in separate thread
@@ -204,9 +216,10 @@ def audio_thread_handler(fifo_filename_audio, process1_audio, audio_bytes_per_vi
         write_audio_frame(fifo_audio_out, in_audio_frame)
     fifo_audio_out.close()
 
+
 def run(in_filename, process_frame, port):
     width, height = get_video_info(in_filename)
-    fps = 25 # video fps
+    fps = 25  # video fps
     process1 = start_ffmpeg_process1(in_filename, fps)
     process1_audio = start_ffmpeg_process1_audio(in_filename)
 
@@ -222,13 +235,14 @@ def run(in_filename, process_frame, port):
     os.mkfifo(fifo_filename_audio)
 
     process2 = start_ffmpeg_process2(fifo_filename_video, fifo_filename_audio, width, height, fps, port)
-    audio_bytes_per_video_frame = 640*2 # 2 bytes, 640 audio frames (16000/25)
+    audio_bytes_per_video_frame = 640 * 2  # 2 bytes, 640 audio frames (16000/25)
 
     # we run audio and video in separate threads otherwise the fifo opening blocks
 
     # create threads
-    video_thread = threading.Thread(target=video_thread_handler,args=(fifo_filename_video, process1, width, height))
-    audio_thread = threading.Thread(target=audio_thread_handler,args=(fifo_filename_audio, process1_audio, audio_bytes_per_video_frame))
+    video_thread = threading.Thread(target=video_thread_handler, args=(fifo_filename_video, process1, width, height))
+    audio_thread = threading.Thread(target=audio_thread_handler,
+                                    args=(fifo_filename_audio, process1_audio, audio_bytes_per_video_frame))
 
     # start threads
     video_thread.start()

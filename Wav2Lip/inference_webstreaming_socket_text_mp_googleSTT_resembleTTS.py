@@ -102,7 +102,7 @@ parser.add_argument('--text_port', default=50007, type=int,
                     help='Port for websocket server for text input (default: 50007)')  # Arbitrary non-privileged port
 
 # Arguments for text-generation by resembles
-parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="Pulkit Tandon")
+parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="Pulkit")
 parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", default="None",
                     choices=['neutral', 'angry', 'annoyed', 'question', 'happy'])
 parser.add_argument("-p", "--project_id", help="project id at resemble", default="None")
@@ -453,6 +453,8 @@ def audio_input_thread_handler(inqueue, outqueues, start_audio_input_thread, kil
         for q in outqueues:
             q.put(audio_bytes_to_write)
         if kill_audio_input_thread.is_set() and len(current_audio_packet_data) == 0:
+            for q in outqueues:
+                q.put('BREAK')
             break
         time.sleep(time_per_write - time.time() + start_time)
 
@@ -470,7 +472,9 @@ def audio_thread_handler(fifo_filename_audio, audio_inqueue):
     # read frame one by one, process and write to fifo pipe
     while True:
         in_audio_frame = audio_inqueue.get()
-        if len(in_audio_frame) == 0:
+        # if len(in_audio_frame) == 0:
+        #     break
+        if in_audio_frame == 'BREAK':
             break
         ffmpeg_stream.write_audio_frame(fifo_audio_out, in_audio_frame)
     fifo_audio_out.close()
@@ -621,9 +625,17 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, width, height):
                 ffmpeg_stream.write_video_frame(fifo_video_out, out_frame_RGB)
         print('Generated', frames_done, 'frames from', '{:.1f}'.format(audio_received), 's of received audio', end='\r')
         audio_data = audio_inqueue.get()
+        print(len(audio_data))
 
-    print()
-    fifo_video_out.close()
+        if audio_data == 'BREAK':
+            print("=" * 50)
+            print('Closing Fifo Video')
+            print("=" * 50)
+            fifo_video_out.close()
+            break
+
+    # print()
+    # fifo_video_out.close()
     # out.release()
 
     # # combine original audio and generated video
@@ -678,7 +690,7 @@ def stream():
     ######## OLD CODE END
 
     # queue for keeping track of audio generation jobs
-    last_generated_clip_id_queue_T5 = queue.Queue()
+    last_generated_clip_id_queue_T5 = multiprocessing.Queue()
 
     # queues for sending audio packets from T1 to T2 and T3
     # unlimited capacity

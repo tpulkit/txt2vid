@@ -32,7 +32,6 @@ while True:
     line = line + '\n'
     if not compress:
         s.send(line.encode('UTF-8'))
-
     else:
         # try compressing the string
         line = line.encode('UTF-8')

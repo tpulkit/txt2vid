@@ -32,7 +32,7 @@ if len(sys.argv) != 2:
     print("Usage: python stt_stream_socket_client.py PORT")
     sys.exit(1)
 
-HOST = ''    # The remote host (leave blank for localhost, put server name for popeye2)
+HOST = 'popeye2.stanford.edu'  # The remote host (leave blank for localhost, put server name for popeye2)
 PORT = int(sys.argv[1])        # should be the same port as used by the server
 
 class MicrophoneStream(object):

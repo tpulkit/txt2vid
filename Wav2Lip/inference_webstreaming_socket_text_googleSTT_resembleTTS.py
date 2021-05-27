@@ -100,7 +100,7 @@ parser.add_argument('--text_port', default=50007, type=int,
                     help='Port for websocket server for text input (default: 50007)')  # Arbitrary non-privileged port
 
 # Arguments for text-generation by resembles
-parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="Pulkit Tandon")
+parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="Pulkit")
 parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", default="None",
                     choices=['neutral', 'angry', 'annoyed', 'question', 'happy'])
 parser.add_argument("-p", "--project_id", help="project id at resemble", default="None")
