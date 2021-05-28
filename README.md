@@ -3,11 +3,11 @@ Repo containing code for txt2vid project. Repo gives a proof-of-concept for the 
 pipeline (for more details read paper **ToDo: add paper link**):
 ![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.png).
 
-Though pipeline is flexible and can be replaced by appropriate softwares performing same function, the
-repo currently uses and allows for [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) codebase for lip-syncing, 
-[Resemble](https://www.resemble.ai) or [Google](https://cloud.google.com/text-to-speech)  APIs for 
-text-to-speech (TTS) synthesis, and [Google](https://cloud.google.com/speech-to-text) API for 
-speech-to-text synthesis (STT). 
+Though pipeline is flexible and can be replaced by appropriate software programs performing same function, 
+the repo currently uses and allows for [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) for lip-syncing, 
+[Resemble](https://www.resemble.ai) or [Google](https://cloud.google.com/text-to-speech) APIs for 
+personalized and general text-to-speech (TTS) synthesis respectively, and
+[Google](https://cloud.google.com/speech-to-text) API for speech-to-text synthesis (STT). 
 It uses [ffmpeg-python](https://github.com/kkroening/ffmpeg-python/tree/master/examples#audiovideo-pipeline)
 to enable streaming.
       
@@ -17,9 +17,13 @@ NOTES:
 * For streaming demonstration, this setup assumes you will be working on a server-machine (**SM**)
   as a  receiver, and place where the code will run and generate
   the lip-synced video on the fly. In reality, this receiver can be 
-  your own local machine (**LM**) if there is access to GPU. 
+  your own or another local machine (**LM**) if there is access to GPU. 
   In that case, some installments and port-forwarding for playing
   streaming video using ffplay can be avoided.
+  
+* For input streaming, we assume a Server (**S**) from where input will be streamed. This server will be
+  your own local machine (**LM**) and will be used to stream (a) audio from microphone; or text via
+  (b) terminal, or (c) using Google STT on audio recorded from microphone.
     
 * Abbreviations: 
     * S = Server; actual server, machine from where streaming inputs will be provided, can be same as LM
@@ -119,9 +123,9 @@ Setup requirements using following steps on all machines (S, SM, LM):
       ```
       This runs a callback server on default port of `5000` on the SM. 
     * If the SM's port `5000` is publicly accessible, then the callback from resemble can be received
-      at `http://localhost:5000`. But if SM is inside a network, we need to provide a publicly 
+      at `http://localhost:5000`. If SM is inside a network, we need to provide a publicly 
       accessible port to the resemble for sending voice data. One way to do so could be to use
-      `https://ngrok.com` for creating a HTTP tunnel. Create a ngrok account and
+      `https://ngrok.com` for creating an HTTP tunnel. Create a ngrok account and
       follow [instructions](https://dashboard.ngrok.com/get-started/setup) to install
       it on your SM. Launch tunnel forwarding to local port `5000` where the callback server is 
       listening by running: 
@@ -140,16 +144,25 @@ Setup requirements using following steps on all machines (S, SM, LM):
 Currently, repo allows following use cases:
 ![Use Cases](https://github.com/tpulkit/txt2vid/blob/main/images/repo_use_cases.png)
 
+The main scripts are <br>
+1. `Wav2Lip/inference_streaming_pipeline.py` for handing the decoding by 
+appropriately handling inputs through various pipes and queues in a multiprocess framework 
+2. `input_stream_socket.py` for handling streaming input handling. <br>
+
 Below we describe a subset of these use-cases with an example from all store/stream modalities,
-in increasing order of complexity. See all available flags by:
+in increasing order of complexity. See all available argument flags by:
 
 ```
 cd Wav2Lip
 python inference_streaming_pipeline.py -h
 ```
+and
+```
+python input_stream_socket.py -h
+```
 
 Ensure Google or Resemble TTS setup is done for all use-cases involving text as described
-[here](##-Installation Instructions).
+"Installation Instructions".
 
 ### Storing txt2vid video as file using text/audio file available at SM
 <pre>
@@ -159,27 +172,53 @@ SM (AV-synced streamed video)
 pre-recorded audio/text + driving picture/video
 </pre>
 
-Example Code:
+**Example Code:**
   
-On SM launch the streaming inference script, and save the generated video.
-* from text:
+On SM launch the streaming inference script, and save the generated video. 
+* from pre-recorded audio:
   ```
   python inference_streaming_pipeline.py -it audio \
-					                     --checkpoint_path checkpoints/wav2lip_gan.pth \
-					                     --face sample_data/006_06.png \
-      					                 -aif socket \
-					                     --audio_port 50007 \
-					                     -vot file \
-					                     --video_file_out results/test_may27_7.mp4  ```
-  Wait till it says `Model Loaded`. The code will halt here waiting
-  for the ffplay command to ask for streaming content.
+					      --checkpoint_path checkpoints/wav2lip_gan.pth \
+					      --face sample_data/006_06.png \
+                                -aif file \
+					      --audio_file_path sample_data/hello_intro.m4a \
+					      -vot file \
+					      --video_file_out results/test_video.mp4
+  ```
+* from pre-recorded text and Resemble TTS:
+  ```
+  python inference_streaming_pipeline.py --it text \
+					      -TTS Resemble \
+					      --checkpoint_path checkpoints/wav2lip_gan.pth \
+					      --face sample_data/006_06.png \
+                                -tif file \
+					      --text_file_path sample_data/random.txt \
+					      -vot file \
+					      --video_file_out results/test_video.mp4 \
+					      --user <user_name> \
+					      --callback_url <callback_url>
+  ```
+  Arguments `<user_name>`, `<callback_url>` depends on the resemble setup and instructions to get them
+  are provided in "Installation Instructions - Resemble TTS". <br>
+  Resemble also allows for voices generated in specific emotions, instead of default personalized TTS
+  output. For accessing them use `-e` flag.
   
-* On the LM ensure `ffplay` is installed. 
+* from pre-recorded text and Google TTS:
   ```
-  ffplay -f avi http://localhost:8080
+  python inference_streaming_pipeline.py --it text \
+					      -TTS Google \
+					      --checkpoint_path checkpoints/wav2lip_gan.pth \
+					      --face sample_data/006_06.png \
+                                -tif file \
+					      --text_file_path sample_data/random.txt \
+					      -vot file \
+					      --video_file_out results/test_video.mp4 \
+					      -gc <google_credential>
   ```
+  Arguments `<google_credentail>` depends on the google setup and instructions to get them
+  are provided in "Installation Instructions - Google TTS and STT". <br>
 
-### Streaming audio-video using audio and video file available at SM
+### Streaming txt2vid video on a port using audio and video file available at SM
 <pre>
 SM (AV-synced streamed video) -----> LM (view AV stream)
 ^
@@ -187,74 +226,105 @@ SM (AV-synced streamed video) -----> LM (view AV stream)
 pre-recorded audio/text + driving picture/video
 </pre>
 
-Example Code:
-* ssh into the server with port-forwarding enabled from local machine.
+On SM launch the streaming inference script, and port forward to stream the generated txt2vid video.
+
+**Example Code:** 
+
+Note: We show use case with text as input and Resemble as TTS.
+Other use cases for Google TTS or audio file can be generated by changing appropriate flags.
+
+* On LM, ssh into the server with port-forwarding enabled.
   ```
   ssh -Y -L localhost:8080:localhost:8080 xyz@abc
   ```
   `8080` is default port but any port should work with appropriately
-  modified commands below. This step is not needed if SM = LM 
-  (i.e. receiver is the local machine and has GPU access).
+  modified `<port>` argument in `inference_streaming_pipeline` below.
+  This step is not needed if SM = LM (i.e. receiver is the local machine and has GPU access).
   
-* On SM launch the webstreaming socket. This sets up 
-  recording audio server as well as pipes for forwarding streaming
-  AV content. 
+* On SM launch the streaming inference script, and write txt2vid video to a port. 
   ```
-  python inference_webstreaming.py --checkpoint_path checkpoints/wav2lip_gan.pth --face "sample_data/005_04.png" --audio "sample_data/hello.m4a" --wav2lip_batch_size 1  
+  python inference_streaming_pipeline.py -it text \
+					      -TTS Resemble \
+			                      --checkpoint_path checkpoints/wav2lip_gan.pth \
+			                      --face sample_data/006_06.png \
+                                -tif file \
+			                      --text_file_path sample_data/random.txt \
+			                      -vot socket \
+			                      --port 8080 \
+			                      --user <user_name> \
+			                      --callback_url <callback_url>
   ```
   Wait till it says `Model Loaded`. The code will halt here waiting
   for the ffplay command to ask for streaming content.
   
-* On the LM ensure `ffplay` is installed. 
+* View streaming output on the LM. Ensure `ffplay` is installed. 
   ```
   ffplay -f avi http://localhost:8080
   ```
 
-### Streaming audio-video using audio input from mic
+### Streaming txt2vid video on a port using streaming input from a server (S)
 <pre>
-S (audio) -----> SM (AV-synced streamed video) -----> LM (view AV stream)
-                 ^
-                 |
-               pre-recorded picture/video
+S (audio/text) -----> SM (AV-synced streamed video) -----> LM (view AV stream)
+                      ^
+                      |
+                      driving picture/video
 </pre>
 
-Example Code:
-* ssh into the server with port-forwarding enabled from local machine.
+**Example Code:** 
+
+Note: We show use case with streaming text as input from terminal and Google STT, with Resemble as TTS.
+Other use cases for Google TTS or audio from microphone can be generated by changing appropriate flags.
+
+* On LM, ssh into the server with port-forwarding enabled.
   ```
   ssh -Y -L localhost:8080:localhost:8080 xyz@abc
   ```
   `8080` is default port but any port should work with appropriately
-  modified commands below. This step is not needed if SM = LM 
-  (i.e. receiver is the local machine and has GPU access).
+  modified `<port>` argument in `inference_streaming_pipeline` below.
+  This step is not needed if SM = LM (i.e. receiver is the local machine and has GPU access).
   
-* On SM launch the webstreaming socket. This sets up 
-  recording audio server as well as pipes for forwarding streaming
-  AV content. 
+* On SM launch the streaming inference script, and write txt2vid video to a port. 
   ```
-  python inference_webstreaming_socket_audio.py --checkpoint_path checkpoints/wav2lip_gan.pth --face "sample_data/005_04.png" --wav2lip_batch_size 1 
+  python inference_streaming_pipeline.py -it text \
+					      -TTS Resemble \
+			                      --checkpoint_path checkpoints/wav2lip_gan.pth \
+			                      --face sample_data/006_06.png \
+                                -tif socket \
+                                --text_port 50007 \
+			                      -vot socket \
+			                      --port 8080 \
+			                      --user <user_name> \
+			                      --callback_url <callback_url>
   ```
   Wait till it says `Model Loaded`. The code will halt here waiting
-  for input audio to stream. At this point all queues/pipes for 
-  enabling streaming have been set up.
+  for the ffplay command to ask for streaming content. <br>
+  `50007` is default port where the Server will stream the text. Can be specified to be something else,
+  but also change `PORT` in below command.
   
-* On the LM ensure `ffplay` is installed. Also ensure the python
-  environment you are working in has `pyaudio` package (else:
-  ```pip install pyaudio```). Then launch the audio recording
-  and ffplay for video display using `run_streaming.sh` provided
-  in Wav2Lip folder of repo. These commands need to be run locally!
-  ```
-  sudo chmod 755 run_streaming.sh 
-  ./run_streaming.sh
-  ```
-  This script launches the audio recording immediately and launches the 
-  video streaming 5 seconds later on the local machine. The 5s added
-  latency right now is arbitrary, but a significant latency is still
-  required because of how ffmpeg works in streaming fashion (it
-  picks up significant audio-video packets before streaming), e.g.,
-  the script won't work is the latency is reduced to below 3s. If 
-  you get a pipe broken error, try to increase the number 5 to
-  something higher in the run_streaming.sh script.
-  **MAIN TODO: IMPROVE LATENCY HERE**
-  
+* On S launch the input streaming via socket. 2 examples are shown (use one, not both).
+  * for text stream from terminal:
+    ```
+    python input_stream_socket.py -it text \
+                                -tif terminal \
+				                            --HOST abc \
+				                            --PORT 50007
+    ```
+  * for text stream using microphone and then Google STT:
+    ```
+    python input_stream_socket.py -it text \
+                                -tif Google \
+				                            --HOST abc \
+				                            --PORT 50007
+                                --gc <google_credential>
+    ```
+    Here, `<google_credential>` is the credential required for Google STT described in
+    installation instructions.
 
+  Note: `HOST` needs to be the SM machine where the wav2lip inference code will run
+  (in our example: SM = xyz@abc)
+
+* View streaming output on the LM. Ensure `ffplay` is installed. 
+  ```
+  ffplay -f avi http://localhost:8080
+  ```
 
