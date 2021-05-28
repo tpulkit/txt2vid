@@ -1,10 +1,10 @@
 # txt2vid
-Repo containing code for txt2vid project. Repo gives a proof-of-concept for the following compression 
+Repo containing code for txt2vid project. Gives a proof-of-concept for the following compression 
 pipeline (for more details read paper **ToDo: add paper link**):
 ![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.png).
 
 Though pipeline is flexible and can be replaced by appropriate software programs performing same function, 
-the repo currently uses and allows for [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) for lip-syncing, 
+the code currently uses and allows for [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) for lip-syncing, 
 [Resemble](https://www.resemble.ai) or [Google](https://cloud.google.com/text-to-speech) APIs for 
 personalized and general text-to-speech (TTS) synthesis respectively, and
 [Google](https://cloud.google.com/speech-to-text) API for speech-to-text synthesis (STT). 
@@ -14,8 +14,8 @@ to enable streaming.
 ## Installation Instructions
 
 NOTES: 
-* For streaming demonstration, this setup assumes you will be working on a server-machine (**SM**)
-  as a  receiver, and place where the code will run and generate
+* This setup assumes you will be working on a server-machine (**SM**)
+  as a  receiver, and place where the decoding code will run and generate
   the lip-synced video on the fly. In reality, this receiver can be 
   your own or another local machine (**LM**) if there is access to GPU. 
   In that case, some installments and port-forwarding for playing
@@ -61,7 +61,7 @@ Setup requirements using following steps on all machines (S, SM, LM):
 
 * **Wav2Lip**: <br>
   Make sure model files are downloaded and put in appropriate
-  folder from the `wav2lip` repo.
+  folder from the `wav2lip` repo, on the machine where the decoding code will run (SM).
   * GAN model: `wav2lip_gan.pth` should be present in
     `Wav2Lip/checkpoints`. Pretrained model can be downloaded from following
     [link](https://iiitaphyd-my.sharepoint.com/:u:/g/personal/radrabha_m_research_iiit_ac_in/EdjI7bZlgApMqsVoEUUXpLsBxqXbn5z8VTmoxp55YNDcIA?e=n9ljGW).
@@ -176,7 +176,7 @@ pre-recorded audio/text + driving picture/video
   
 On SM launch the streaming inference script, and save the generated video. 
 * from pre-recorded audio:
-  ```
+  ```python
   python inference_streaming_pipeline.py -it audio \
 					      --checkpoint_path checkpoints/wav2lip_gan.pth \
 					      --face sample_data/006_06.png \
@@ -191,7 +191,7 @@ On SM launch the streaming inference script, and save the generated video.
 					      -TTS Resemble \
 					      --checkpoint_path checkpoints/wav2lip_gan.pth \
 					      --face sample_data/006_06.png \
-                                -tif file \
+                          -tif file \
 					      --text_file_path sample_data/random.txt \
 					      -vot file \
 					      --video_file_out results/test_video.mp4 \
