@@ -15,12 +15,12 @@ to enable streaming.
 
 ## Table of Contents
 
-* [Installation Instructions](##-Installation-Instructions)
-  * [Notes](###-Notes)
-  * [Environment Setup](###-Envirornment-Setup)
-  * [Wav2Lip Setup](###-Wav2Lip-Setup)
-  * [Google STT and TTS Setup](###-Google-STT-and-TTS-Setup)
-  * [Resemble TTS Setup](###-Resemble-TTS-Setup)
+* [Installation Instructions](#Installation-Instructions)
+  * [Notes](#Notes)
+  * [Environment Setup](#Environment-Setup)
+  * [Wav2Lip Setup](#Wav2Lip-Setup)
+  * [Google STT and TTS Setup](#Google-STT-and-TTS-Setup)
+  * [Resemble TTS Setup](#Resemble-TTS-Setup)
 
 ## Installation Instructions
 
