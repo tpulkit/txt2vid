@@ -1,4 +1,5 @@
 # txt2vid
+
 Repo containing code for txt2vid project. Gives a proof-of-concept for the following compression 
 pipeline (for more details read paper **ToDo: add paper link**):
 
@@ -11,7 +12,10 @@ personalized and general text-to-speech (TTS) synthesis respectively, and
 [Google](https://cloud.google.com/speech-to-text) API for speech-to-text synthesis (STT). 
 It uses [ffmpeg-python](https://github.com/kkroening/ffmpeg-python/tree/master/examples#audiovideo-pipeline)
 to enable streaming.
-      
+
+## Table of Contents
+
+* [Installation Instructions](##-Installation-Instructions)
 ## Installation Instructions
 
 NOTES: 
@@ -120,23 +124,23 @@ Setup requirements using following steps on all machines (S, SM, LM):
       ```
       cd resemble_tts
       export FLASK_APP=tts_callback_file.py
-      python -m flask run
+      python -m flask run -p <callback_port>
       ```
-      This runs a callback server on default port of `5000` on the SM. 
-    * If the SM's port `5000` is publicly accessible, then the callback from resemble can be received
-      at `http://localhost:5000`. If SM is inside a network, we need to provide a publicly 
+      This runs a callback server on `<callback_port>` port (default is `5000`) on the SM. 
+    * If the SM's port `<callback_port>` is publicly accessible, then the callback from resemble can be received
+      at `http://localhost:<callback_port>`. If SM is inside a network, we need to provide a publicly 
       accessible port to the resemble for sending voice data. One way to do so could be to use
       `https://ngrok.com` for creating an HTTP tunnel. Create a ngrok account and
       follow [instructions](https://dashboard.ngrok.com/get-started/setup) to install
-      it on your SM. Launch tunnel forwarding to local port `5000` where the callback server is 
+      it on your SM. Launch tunnel forwarding to local port `<callback_port>` where the callback server is 
       listening by running: 
       ```
-      ./ngrok http 5000
+      ./ngrok http <callback_port>
       ```
       This port forwards a publicly accessible link to our
       callback server. The publicly accessible link (`<link>`) is
       available as output where the ngrok command was run in 
-      `Forwarding` section as `<link> -> http://localhost:5000`.
+      `Forwarding` section as `<link> -> http://localhost:<callback_port>`.
     * **Pass the `<link>` variable or appropriate publicly accessible callback server address to the
       `--resemble_callback_url` parameter for the relevant script runs using Resemble as TTS.**
   
