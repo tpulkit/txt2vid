@@ -24,7 +24,7 @@ to enable streaming.
 * [Use Cases](#Use-Cases)
   * [Storing txt2vid video as file using text or audio file available at server](#Storing-txt2vid-video-as-file-using-text-or-audio-file-available-at-server)
   * [Streaming txt2vid video on a port using audio and video file available at server](#Streaming-txt2vid-video-on-a-port-using-audio-and-video-file-available-at-server)
-  * [Streaming txt2vid video on a port using streaming input from a sender](Streaming-txt2vid-video-on-a-port-using-streaming-input-from-a-sender)
+  * [Streaming txt2vid video on a port using streaming input from a sender](#Streaming-txt2vid-video-on-a-port-using-streaming-input-from-a-sender)
 
 ## Installation Instructions
 
