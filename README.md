@@ -1,11 +1,7 @@
 # txt2vid
 Repo containing code for txt2vid project. Repo gives a proof-of-concept for the following compression 
-pipeline(for more details read paper **ToDo: add paper link**):
+pipeline (for more details read paper **ToDo: add paper link**):
 ![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.png).
-
-## Use-Cases
-Currently, repo allows following use cases 
-![Use Cases](https://github.com/tpulkit/txt2vid/blob/main/images/repo_use_cases.png)
 
 Though pipeline is flexible and can be replaced by appropriate softwares performing same function, the
 repo currently uses and allows for [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) codebase for lip-syncing, 
@@ -14,6 +10,8 @@ text-to-speech (TTS) synthesis, and [Google](https://cloud.google.com/speech-to-
 speech-to-text synthesis (STT). 
 It uses [ffmpeg-python](https://github.com/kkroening/ffmpeg-python/tree/master/examples#audiovideo-pipeline)
 to enable streaming.
+      
+## Installation Instructions
 
 NOTES: 
 * For streaming demonstration, this setup assumes you will be working on a server-machine (**SM**)
@@ -30,9 +28,7 @@ NOTES:
     * LM = Local-machine; used for watching output streaming content or input streaming content.
     * TTS = Text-to-Speech
     * STT = Speech-to-Text
-      
-## Installation Instructions
-
+  
 Setup requirements using following steps on all machines (S, SM, LM):
 
 * Create conda environment:
@@ -82,7 +78,7 @@ Setup requirements using following steps on all machines (S, SM, LM):
   * **Pass the path to the json key to the `-gc` parameter 
     for the relevant script runs using Google as STT/TTS.**
   
-* **Resemble**: <br>
+* **Resemble TTS**: <br>
   To use Resemble API, ensure following steps are executed:
   * Create an account on [resemble.ai website](https://app.resemble.ai) and create your own 
     [voice](https://app.resemble.ai/voices) by recording 50-100 samples of audio data.
@@ -138,9 +134,81 @@ Setup requirements using following steps on all machines (S, SM, LM):
       `Forwarding` section as `<link> -> http://localhost:5000`.
     * **Pass the `<link>` variable or appropriate publicly accessible callback server address to the
       `--resemble_callback_url` parameter for the relevant script runs using Resemble as TTS.**
-      
-      
   
+
+## Use-Cases
+Currently, repo allows following use cases:
+![Use Cases](https://github.com/tpulkit/txt2vid/blob/main/images/repo_use_cases.png)
+
+Below we describe a subset of these use-cases with an example from all store/stream modalities,
+in increasing order of complexity. See all available flags by:
+
+```
+cd Wav2Lip
+python inference_streaming_pipeline.py -h
+```
+
+Ensure Google or Resemble TTS setup is done for all use-cases involving text as described [here](##Installation Instructions
+).
+
+### Storing txt2vid video as file using text/audio file available at SM
+<pre>
+SM (AV-synced streamed video)
+^
+|
+pre-recorded audio/text + driving picture/video
+</pre>
+
+Example Code:
+  
+On SM launch the streaming inference script, and save the generated video.
+* from text:
+  ```
+  python inference_streaming_pipeline.py -it audio \
+					                     --checkpoint_path checkpoints/wav2lip_gan.pth \
+					                     --face sample_data/006_06.png \
+      					                 -aif socket \
+					                     --audio_port 50007 \
+					                     -vot file \
+					                     --video_file_out results/test_may27_7.mp4  ```
+  Wait till it says `Model Loaded`. The code will halt here waiting
+  for the ffplay command to ask for streaming content.
+  
+* On the LM ensure `ffplay` is installed. 
+  ```
+  ffplay -f avi http://localhost:8080
+  ```
+
+### Streaming audio-video using audio and video file available at SM
+<pre>
+SM (AV-synced streamed video) -----> LM (view AV stream)
+^
+|
+pre-recorded audio/text + driving picture/video
+</pre>
+
+Example Code:
+* ssh into the server with port-forwarding enabled from local machine.
+  ```
+  ssh -Y -L localhost:8080:localhost:8080 xyz@abc
+  ```
+  `8080` is default port but any port should work with appropriately
+  modified commands below. This step is not needed if SM = LM 
+  (i.e. receiver is the local machine and has GPU access).
+  
+* On SM launch the webstreaming socket. This sets up 
+  recording audio server as well as pipes for forwarding streaming
+  AV content. 
+  ```
+  python inference_webstreaming.py --checkpoint_path checkpoints/wav2lip_gan.pth --face "sample_data/005_04.png" --audio "sample_data/hello.m4a" --wav2lip_batch_size 1  
+  ```
+  Wait till it says `Model Loaded`. The code will halt here waiting
+  for the ffplay command to ask for streaming content.
+  
+* On the LM ensure `ffplay` is installed. 
+  ```
+  ffplay -f avi http://localhost:8080
+  ```
 
 ### Streaming audio-video using audio input from mic
 <pre>
@@ -187,39 +255,6 @@ Example Code:
   you get a pipe broken error, try to increase the number 5 to
   something higher in the run_streaming.sh script.
   **MAIN TODO: IMPROVE LATENCY HERE**
-  
-### Streaming audio-video using audio and video file available at SM
-<pre>
-SM (AV-synced streamed video) -----> LM (view AV stream)
-^
-|
-pre-recorded audio + picture/video
-</pre>
-
-Example Code:
-* ssh into the server with port-forwarding enabled from local machine.
-  ```
-  ssh -Y -L localhost:8080:localhost:8080 xyz@abc
-  ```
-  `8080` is default port but any port should work with appropriately
-  modified commands below. This step is not needed if SM = LM 
-  (i.e. receiver is the local machine and has GPU access).
-  
-* On SM launch the webstreaming socket. This sets up 
-  recording audio server as well as pipes for forwarding streaming
-  AV content. 
-  ```
-  python inference_webstreaming.py --checkpoint_path checkpoints/wav2lip_gan.pth --face "sample_data/005_04.png" --audio "sample_data/hello.m4a" --wav2lip_batch_size 1  
-  ```
-  Wait till it says `Model Loaded`. The code will halt here waiting
-  for the ffplay command to ask for streaming content.
-  
-* On the LM ensure `ffplay` is installed. 
-  ```
-  ffplay -f avi http://localhost:8080
-  ```
-  
-
   
 
 
