@@ -16,9 +16,15 @@ to enable streaming.
 ## Table of Contents
 
 * [Installation Instructions](##-Installation-Instructions)
+  * [Notes](###-Notes)
+  * [Environment Setup](###-Envirornment-Setup)
+  * [Wav2Lip Setup](###-Wav2Lip-Setup)
+  * [Google STT and TTS Setup](###-Google-STT-and-TTS-Setup)
+  * [Resemble TTS Setup](###-Resemble-TTS-Setup)
+
 ## Installation Instructions
 
-NOTES: 
+### Notes
 * This setup assumes you will be working on a server-machine (**SM**)
   as a  receiver, and the place where the decoding code will run and generate
   the lip-synced video on the fly. In reality, this receiver can be 
@@ -38,6 +44,8 @@ NOTES:
     * TTS = Text-to-Speech
     * STT = Speech-to-Text
   
+### Environment Setup
+
 Setup requirements using following steps on all machines (S, SM, LM):
 
 * Create conda environment:
@@ -64,86 +72,86 @@ Setup requirements using following steps on all machines (S, SM, LM):
   pip install -r requirements.txt
   ```
 
-* **Wav2Lip**: <br>
-  Make sure model files are downloaded and put in appropriate
-  folder from the `wav2lip` repo, on the machine where the decoding code will run (SM).
-  * GAN model: `wav2lip_gan.pth` should be present in
-    `Wav2Lip/checkpoints`. Pretrained model can be downloaded from following
-    [link](https://iiitaphyd-my.sharepoint.com/:u:/g/personal/radrabha_m_research_iiit_ac_in/EdjI7bZlgApMqsVoEUUXpLsBxqXbn5z8VTmoxp55YNDcIA?e=n9ljGW).
-  * Face detection model: `s3fd.pth` should be present in 
-    `Wav2Lip/face_detection/detection/sfd/s3fd.pth`. Pretrained model can be downloaded from 
-    [link1](https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth)
-    or 
-    [link2](https://iiitaphyd-my.sharepoint.com/:u:/g/personal/prajwal_k_research_iiit_ac_in/EZsy6qWuivtDnANIG73iHjIBjMSoojcIV0NULXV-yiuiIg?e=qTasa8).
+### Wav2Lip Setup
+Make sure model files are downloaded and put in appropriate
+folder from the `wav2lip` repo, on the machine where the decoding code will run (SM).
+* GAN model: `wav2lip_gan.pth` should be present in
+  `Wav2Lip/checkpoints`. Pretrained model can be downloaded from following
+  [link](https://iiitaphyd-my.sharepoint.com/:u:/g/personal/radrabha_m_research_iiit_ac_in/EdjI7bZlgApMqsVoEUUXpLsBxqXbn5z8VTmoxp55YNDcIA?e=n9ljGW).
+* Face detection model: `s3fd.pth` should be present in 
+  `Wav2Lip/face_detection/detection/sfd/s3fd.pth`. Pretrained model can be downloaded from 
+  [link1](https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth)
+  or 
+  [link2](https://iiitaphyd-my.sharepoint.com/:u:/g/personal/prajwal_k_research_iiit_ac_in/EZsy6qWuivtDnANIG73iHjIBjMSoojcIV0NULXV-yiuiIg?e=qTasa8).
     
-* **Google STT and TTS**: <br>
-  To use Google API for TTS or STT, ensure following steps are executed:
-  * Follow [instructions](https://cloud.google.com/docs/authentication/getting-started#creating_a_service_account)
-    to create a service account (if it doesn't exist already), and download the json key.
-  * Follow [instructions](https://support.google.com/googleapi/answer/6158841?hl=en) ("enable and disable APIs")
-    to add the following APIs to this project
-      1. Cloud Speech-to-Text API
-      2. Cloud Text-to-Speech API
-  * **Pass the path to the json key to the `-gc` parameter 
-    for the relevant script runs using Google as STT/TTS.**
+### Google STT and TTS Setup
+To use Google API for TTS or STT, ensure following steps are executed:
+* Follow [instructions](https://cloud.google.com/docs/authentication/getting-started#creating_a_service_account)
+  to create a service account (if it doesn't exist already), and download the json key.
+* Follow [instructions](https://support.google.com/googleapi/answer/6158841?hl=en) ("enable and disable APIs")
+  to add the following APIs to this project
+    1. Cloud Speech-to-Text API
+    2. Cloud Text-to-Speech API
+* **Pass the path to the json key to the `-gc` parameter 
+  for the relevant script runs using Google as STT/TTS.**
   
-* **Resemble TTS**: <br>
-  To use Resemble API, ensure following steps are executed:
-  * Create an account on [resemble.ai website](https://app.resemble.ai) and create your own 
-    [voice](https://app.resemble.ai/voices) by recording 50-100 samples of audio data.
-    Create a new project.
-    
-  * Update `resemble_tts/resemble_config.json` with your data. This json has following structure:
-    ```
-    {
-    "users": { 
-      <user_name>: {
-        "name": <voice_name>,
-        "token": <api_token>,
-        "voice_id": <voice_id>
-      },
-      ...
-    "project_uuid": <project_uuid>
-    }
-    ```
-    where all the variables are strings. `voice_name` is the name of the recorded voice chosen in resemble 
-    (found [here](https://app.resemble.ai/voices)), `api_token` is the token used for API access 
-    (found [here](https://app.resemble.ai/account/api)) and `voice_id` is 8 character resemble voice ID
-    (can be found [here](https://app.resemble.ai/docs#voice) by executing the interactive example and copying
-    the `uuid`). The `user_name` can be any identifier string for the voice. **Pass the `user_name` to 
-    `--user` parameter for the relevant script runs using Resemble as TTS.** `project_uuid` is 8 character
-    ID of the project where the voice will be created using the API 
-    (can be found [here](https://app.resemble.ai/docs#project)
-    by executing the interactive example and copying the `uuid` of the project to contain voice clips 
-    generated via API).
-    
-  * **Callback Server setup** <br>
-    * For the Resemble TTS to work via API, we use a callback server to receive the voice output
-      generated by Resemble. On SM (machine where decoding will happen), 
-      launch the callback server by 
-      ```
-      cd resemble_tts
-      export FLASK_APP=tts_callback_file.py
-      python -m flask run -p <callback_port>
-      ```
-      This runs a callback server on `<callback_port>` port (default is `5000`) on the SM. 
-    * If the SM's port `<callback_port>` is publicly accessible, then the callback from resemble can be received
-      at `http://localhost:<callback_port>`. If SM is inside a network, we need to provide a publicly 
-      accessible port to the resemble for sending voice data. One way to do so could be to use
-      `https://ngrok.com` for creating an HTTP tunnel. Create a ngrok account and
-      follow [instructions](https://dashboard.ngrok.com/get-started/setup) to install
-      it on your SM. Launch tunnel forwarding to local port `<callback_port>` where the callback server is 
-      listening by running: 
-      ```
-      ./ngrok http <callback_port>
-      ```
-      This port forwards a publicly accessible link to our
-      callback server. The publicly accessible link (`<link>`) is
-      available as output where the ngrok command was run in 
-      `Forwarding` section as `<link> -> http://localhost:<callback_port>`.
-    * **Pass the `<link>` variable or appropriate publicly accessible callback server address to the
-      `--resemble_callback_url` parameter for the relevant script runs using Resemble as TTS.**
+### Resemble TTS Setup
+To use Resemble API, ensure following steps are executed:
+* Create an account on [resemble.ai website](https://app.resemble.ai) and create your own 
+  [voice](https://app.resemble.ai/voices) by recording 50-100 samples of audio data.
+  Create a new project.
   
+* Update `resemble_tts/resemble_config.json` with your data. This json has following structure:
+  ```
+  {
+  "users": { 
+    <user_name>: {
+      "name": <voice_name>,
+      "token": <api_token>,
+      "voice_id": <voice_id>
+    },
+    ...
+  "project_uuid": <project_uuid>
+  }
+  ```
+  where all the variables are strings. `voice_name` is the name of the recorded voice chosen in resemble 
+  (found [here](https://app.resemble.ai/voices)), `api_token` is the token used for API access 
+  (found [here](https://app.resemble.ai/account/api)) and `voice_id` is 8 character resemble voice ID
+  (can be found [here](https://app.resemble.ai/docs#voice) by executing the interactive example and copying
+  the `uuid`). The `user_name` can be any identifier string for the voice. **Pass the `user_name` to 
+  `--user` parameter for the relevant script runs using Resemble as TTS.** `project_uuid` is 8 character
+  ID of the project where the voice will be created using the API 
+  (can be found [here](https://app.resemble.ai/docs#project)
+  by executing the interactive example and copying the `uuid` of the project to contain voice clips 
+  generated via API).
+  
+* **Callback Server setup** <br>
+  * For the Resemble TTS to work via API, we use a callback server to receive the voice output
+    generated by Resemble. On SM (machine where decoding will happen), 
+    launch the callback server by 
+    ```
+    cd resemble_tts
+    export FLASK_APP=tts_callback_file.py
+    python -m flask run -p <callback_port>
+    ```
+    This runs a callback server on `<callback_port>` port (default is `5000`) on the SM. 
+  * If the SM's port `<callback_port>` is publicly accessible, then the callback from resemble can be received
+    at `http://localhost:<callback_port>`. If SM is inside a network, we need to provide a publicly 
+    accessible port to the resemble for sending voice data. One way to do so could be to use
+    `https://ngrok.com` for creating an HTTP tunnel. Create a ngrok account and
+    follow [instructions](https://dashboard.ngrok.com/get-started/setup) to install
+    it on your SM. Launch tunnel forwarding to local port `<callback_port>` where the callback server is 
+    listening by running: 
+    ```
+    ./ngrok http <callback_port>
+    ```
+    This port forwards a publicly accessible link to our
+    callback server. The publicly accessible link (`<link>`) is
+    available as output where the ngrok command was run in 
+    `Forwarding` section as `<link> -> http://localhost:<callback_port>`.
+  * **Pass the `<link>` variable or appropriate publicly accessible callback server address to the
+    `--resemble_callback_url` parameter for the relevant script runs using Resemble as TTS.**
+
 
 ## Use-Cases
 Currently, the repo allows following use cases:
