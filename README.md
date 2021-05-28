@@ -35,8 +35,8 @@ to enable streaming.
   * receiver -- machine for watching output streaming content, typically will be your local machine.
 
 * Server can be same as receiver if the server has access to GPU for running streamable lip-syncing code. 
-  In that case, some installments and port-forwarding for playing
-  streaming video output using ffplay as described in sections below are not necessary.
+  In that case, port-forwarding for playing streaming video output using ffplay as described in sections below 
+  is not necessary.
   
 * Sender and Receiver can be different local machines.
   
