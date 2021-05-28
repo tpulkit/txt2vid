@@ -327,6 +327,7 @@ def stream():
 
     os.remove(fifo_filename_video)
     os.remove(fifo_filename_audio)
+    os.remove(fifo_resemble_tts)
     logger.info('Done')
 
 
