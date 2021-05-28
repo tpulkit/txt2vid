@@ -2,7 +2,7 @@
 Repo containing code for txt2vid project. **ToDo: add paper link**
 
 Pipeline:
-![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.pdf)
+![Pipeline](../blob/main/images/block_diagram.pdf?raw=true)
 Currently, does speech2vid in a streaming fashion using 
 [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) codebase
 and using [ffmpeg-python](https://github.com/kkroening/ffmpeg-python/tree/master/examples#audiovideo-pipeline)
