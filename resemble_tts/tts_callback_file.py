@@ -8,11 +8,11 @@ app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
 def respond():
-    print(request.json)
+    # print(request.json)
     request_id = request.json['id']
-    print(request_id)
+    # print(request_id)
     wav_download_url = request.json['url']
-    print(wav_download_url)
+    # print(wav_download_url)
 
     audio_raw = requests.get(wav_download_url)
     # Use librosa to convert sr to 16k required by wav2lip from 44.1k provided by resemble
