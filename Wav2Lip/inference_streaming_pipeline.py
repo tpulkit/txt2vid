@@ -48,6 +48,35 @@ parser.add_argument('-it', '--input_type', choices=['audio', 'text'], default='t
 parser.add_argument('-TTS', '--text_to_speech', choices=['Resemble', 'Google'], default='Resemble',
                     help='TTS software api to use. Currently only supports Resemble and Google.')
 
+
+# Input from file or stream
+parser.add_argument('-tif', '--text_input_from', choices=['file', 'socket'], default='socket',
+                    help='whether to take input text from a file or if it will be streamed over a socket.')
+parser.add_argument('--text_file_path', default='None',
+                    help='path of text file to be converted in case input from file.')
+parser.add_argument('-aif', '--audio_input_from', choices=['file', 'socket'], default='socket',
+                    help='whether to take input audio from a file or if it will be streamed over a socket.')
+parser.add_argument('--audio_file_path', default='None',
+                    help='path of audio file to be converted in case input from file.')
+
+# Port for incoming text or audio stream
+parser.add_argument('--text_port', default=50007, type=int,
+                    help='Port for websocket server for text input (default: 50007)')  # Arbitrary non-privileged port
+parser.add_argument('--audio_port', default=50007, type=int,
+                    help='Port for websocket server for audio input (default: 50007)')  # Arbitrary non-privileged port
+
+# IP and Port for Output Video Streaming
+parser.add_argument("-i", "--ip", type=str, default="0.0.0.0",  # 172.24.92.25
+                    help="ip address of the device")
+parser.add_argument("-o", "--port", type=int, default=8080,
+                    help="ephemeral port number of the server (1024 to 65535)")
+
+# Output to file or stream
+parser.add_argument('-vot', '--video_output_to', choices=['file', 'socket'], default='socket',
+                    help='whether to write output video to a file or if it will be streamed over a socket.')
+parser.add_argument('--video_file_out', default='None',
+                    help='video file to be written: should be a .mp4 file.')
+
 # wav2lip params
 parser.add_argument('--checkpoint_path', type=str,
                     help='Name of saved checkpoint to load weights from', required=True)
@@ -85,33 +114,6 @@ parser.add_argument('--rotate', default=False, action='store_true',
 parser.add_argument('--nosmooth', default=False, action='store_true',
                     help='Prevent smoothing face detections over a short temporal window')
 
-# IP and Port for Output Video Streaming
-parser.add_argument("-i", "--ip", type=str, default="0.0.0.0",  # 172.24.92.25
-                    help="ip address of the device")
-parser.add_argument("-o", "--port", type=int, default=8080,
-                    help="ephemeral port number of the server (1024 to 65535)")
-
-# Input from file or stream
-parser.add_argument('-tif', '--text_input_from', choices=['file', 'socket'], default='socket',
-                    help='whether to take input text from a file or if it will be streamed over a socket.')
-parser.add_argument('--text_file_path', default='None',
-                    help='path of text file to be converted in case input from file.')
-parser.add_argument('-aif', '--audio_input_from', choices=['file', 'socket'], default='socket',
-                    help='whether to take input audio from a file or if it will be streamed over a socket.')
-parser.add_argument('--audio_file_path', default='None',
-                    help='path of audio file to be converted in case input from file.')
-
-# Port for incoming text or audio stream
-parser.add_argument('--text_port', default=50007, type=int,
-                    help='Port for websocket server for text input (default: 50007)')  # Arbitrary non-privileged port
-parser.add_argument('--audio_port', default=50007, type=int,
-                    help='Port for websocket server for audio input (default: 50007)')  # Arbitrary non-privileged port
-
-# Output to file or stream
-parser.add_argument('-vot', '--video_output_to', choices=['file', 'socket'], default='socket',
-                    help='whether to write output video to a file or if it will be streamed over a socket.')
-parser.add_argument('--video_file_out', default='None',
-                    help='video file to be written: should be a .mp4 file.')
 
 # Arguments for text-generation by resemble api
 parser.add_argument('--resemble_config_data', default='../resemble_tts/resemble_config.json',
@@ -121,7 +123,7 @@ parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", 
                     choices=['neutral', 'angry', 'annoyed', 'question', 'happy'])
 parser.add_argument("-p", "--project_id", help="project id at resemble", default="None")
 parser.add_argument("-t", "--text_title", help="text title inside project", default="Demo")
-parser.add_argument('--callback_url', default="https://7fd2364008af.ngrok.io",
+parser.add_argument('--resemble_callback_url', default="https://7fd2364008af.ngrok.io",
                     help='Publically visible url which will recieve callback from Resemble once it is ready')
 
 # Arguments for text generation by Google
@@ -155,7 +157,7 @@ if input_type == 'text':
             project_uuid = resemble_config_data['project_uuid']
         # User ID (uuid) for voice
         user_voice = resemble_config_data['users'][user]['voice_id']
-        callback_url = args.callback_url
+        callback_url = args.resemble_callback_url
 
 elif input_type == 'audio':
     audio_input_from = args.audio_input_from
