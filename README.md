@@ -21,6 +21,10 @@ to enable streaming.
   * [Wav2Lip Setup](#Wav2Lip-Setup)
   * [Google STT and TTS Setup](#Google-STT-and-TTS-Setup)
   * [Resemble TTS Setup](#Resemble-TTS-Setup)
+* [Use Cases](#Use-Cases)
+  * [Storing txt2vid video as file using text/audio file available at SM](#Storing-txt2vid-video-as-file-using-text/audio-file-available-at-SM)
+  * [Streaming txt2vid video on a port using audio and video file available at SM](#Streaming-txt2vid-video-on-a-port-using-audio-and-video-file-available-at-SM)
+  * [Streaming txt2vid video on a port using streaming input from a server (S)](Streaming-txt2vid-video-on-a-port-using-streaming-input-from-a-server-(S))
 
 ## Installation Instructions
 
