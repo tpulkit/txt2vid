@@ -1,9 +1,10 @@
 # txt2vid
 Repo containing code for txt2vid project. Gives a proof-of-concept for the following compression 
 pipeline (for more details read paper **ToDo: add paper link**):
+
 ![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.png).
 
-Though pipeline is flexible and can be replaced by appropriate software programs performing same function, 
+Though the pipeline is flexible and can be replaced by appropriate software programs performing same function, 
 the code currently uses and allows for [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) for lip-syncing, 
 [Resemble](https://www.resemble.ai) or [Google](https://cloud.google.com/text-to-speech) APIs for 
 personalized and general text-to-speech (TTS) synthesis respectively, and
@@ -15,7 +16,7 @@ to enable streaming.
 
 NOTES: 
 * This setup assumes you will be working on a server-machine (**SM**)
-  as a  receiver, and place where the decoding code will run and generate
+  as a  receiver, and the place where the decoding code will run and generate
   the lip-synced video on the fly. In reality, this receiver can be 
   your own or another local machine (**LM**) if there is access to GPU. 
   In that case, some installments and port-forwarding for playing
@@ -141,7 +142,8 @@ Setup requirements using following steps on all machines (S, SM, LM):
   
 
 ## Use-Cases
-Currently, repo allows following use cases:
+Currently, the repo allows following use cases:
+
 ![Use Cases](https://github.com/tpulkit/txt2vid/blob/main/images/repo_use_cases.png)
 
 The main scripts are <br>
@@ -178,25 +180,25 @@ On SM launch the streaming inference script, and save the generated video.
 * from pre-recorded audio:
   ```
   python inference_streaming_pipeline.py -it audio \
-					    --checkpoint_path checkpoints/wav2lip_gan.pth \
-					    --face sample_data/006_06.png \
-                        -aif file \
-					    --audio_file_path sample_data/hello_intro.m4a \
-					    -vot file \
-					    --video_file_out results/test_video.mp4
+                                         --checkpoint_path checkpoints/wav2lip_gan.pth \
+                                         --face sample_data/006_06.png \
+                                         -aif file \
+                                         --audio_file_path sample_data/hello_intro.m4a \
+                                         -vot file \
+                                         --video_file_out results/test_video.mp4
   ```
 * from pre-recorded text and Resemble TTS:
   ```
   python inference_streaming_pipeline.py --it text \
-					      -TTS Resemble \
-					      --checkpoint_path checkpoints/wav2lip_gan.pth \
-					      --face sample_data/006_06.png \
-                          -tif file \
-					      --text_file_path sample_data/random.txt \
-					      -vot file \
-					      --video_file_out results/test_video.mp4 \
-					      --user <user_name> \
-					      --callback_url <callback_url>
+                                         -TTS Resemble \
+                                         --checkpoint_path checkpoints/wav2lip_gan.pth \
+                                         --face sample_data/006_06.png \
+                                         -tif file \
+                                         --text_file_path sample_data/random.txt \
+                                         -vot file \
+                                         --video_file_out results/test_video.mp4 \
+                                         --user <user_name> \
+                                         --callback_url <callback_url>
   ```
   Arguments `<user_name>`, `<callback_url>` depends on the resemble setup and instructions to get them
   are provided in "Installation Instructions - Resemble TTS". <br>
@@ -206,14 +208,14 @@ On SM launch the streaming inference script, and save the generated video.
 * from pre-recorded text and Google TTS:
   ```
   python inference_streaming_pipeline.py --it text \
-					      -TTS Google \
-					      --checkpoint_path checkpoints/wav2lip_gan.pth \
-					      --face sample_data/006_06.png \
-                                -tif file \
-					      --text_file_path sample_data/random.txt \
-					      -vot file \
-					      --video_file_out results/test_video.mp4 \
-					      -gc <google_credential>
+                                         -TTS Google \
+                                         --checkpoint_path checkpoints/wav2lip_gan.pth \
+                                         --face sample_data/006_06.png \
+                                         -tif file \
+                                         --text_file_path sample_data/random.txt \
+                                         -vot file \
+                                         --video_file_out results/test_video.mp4 \
+                                         -gc <google_credential>
   ```
   Arguments `<google_credentail>` depends on the google setup and instructions to get them
   are provided in "Installation Instructions - Google TTS and STT". <br>
@@ -244,15 +246,15 @@ Other use cases for Google TTS or audio file can be generated by changing approp
 * On SM launch the streaming inference script, and write txt2vid video to a port. 
   ```
   python inference_streaming_pipeline.py -it text \
-					      -TTS Resemble \
-			                      --checkpoint_path checkpoints/wav2lip_gan.pth \
-			                      --face sample_data/006_06.png \
-                                -tif file \
-			                      --text_file_path sample_data/random.txt \
-			                      -vot socket \
-			                      --port 8080 \
-			                      --user <user_name> \
-			                      --callback_url <callback_url>
+                                         -TTS Resemble \
+                                         --checkpoint_path checkpoints/wav2lip_gan.pth \
+                                         --face sample_data/006_06.png \
+                                         -tif file \
+                                         --text_file_path sample_data/random.txt \
+                                         -vot socket \
+                                         --port 8080 \
+                                         --user <user_name> \
+                                         --callback_url <callback_url>
   ```
   Wait till it says `Model Loaded`. The code will halt here waiting
   for the ffplay command to ask for streaming content.
@@ -286,15 +288,15 @@ Other use cases for Google TTS or audio from microphone can be generated by chan
 * On SM launch the streaming inference script, and write txt2vid video to a port. 
   ```
   python inference_streaming_pipeline.py -it text \
-                                  -TTS Resemble \
-			                      --checkpoint_path checkpoints/wav2lip_gan.pth \
-			                      --face sample_data/006_06.png \
-                                -tif socket \
-                                --text_port 50007 \
-			                      -vot socket \
-			                      --port 8080 \
-			                      --user <user_name> \
-			                      --callback_url <callback_url>
+                                         -TTS Resemble \
+                                         --checkpoint_path checkpoints/wav2lip_gan.pth \
+                                         --face sample_data/006_06.png \
+                                         -tif socket \
+                                         --text_port 50007 \
+                                         -vot socket \
+                                         --port 8080 \
+                                         --user <user_name> \
+                                         --callback_url <callback_url>
   ```
   Wait till it says `Model Loaded`. The code will halt here waiting
   for the ffplay command to ask for streaming content. <br>
@@ -305,17 +307,17 @@ Other use cases for Google TTS or audio from microphone can be generated by chan
   * for text stream from terminal:
     ```
     python input_stream_socket.py -it text \
-                                -tif terminal \
-				                            --HOST abc \
-				                            --PORT 50007
+                                  -tif terminal \
+                                  --HOST abc \
+                                  --PORT 50007
     ```
   * for text stream using microphone and then Google STT:
     ```
     python input_stream_socket.py -it text \
-                                -tif Google \
-				                            --HOST abc \
-				                            --PORT 50007
-                                --gc <google_credential>
+                                  -tif Google \
+                                  --HOST abc \
+                                  --PORT 50007
+                                  --gc <google_credential>
     ```
     Here, `<google_credential>` is the credential required for Google STT described in
     installation instructions.
