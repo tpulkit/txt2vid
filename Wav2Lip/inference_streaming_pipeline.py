@@ -65,10 +65,8 @@ parser.add_argument('--text_port', default=50007, type=int,
 parser.add_argument('--audio_port', default=50007, type=int,
                     help='Port for websocket server for audio input (default: 50007)')  # Arbitrary non-privileged port
 
-# IP and Port for Output Video Streaming
-parser.add_argument("-i", "--ip", type=str, default="0.0.0.0",  # 172.24.92.25
-                    help="ip address of the device")
-parser.add_argument("-o", "--port", type=int, default=8080,
+# Port for Output Video Streaming
+parser.add_argument("--output_port", type=int, default=8080,
                     help="ephemeral port number of the server (1024 to 65535)")
 
 # Output to file or stream
@@ -118,12 +116,12 @@ parser.add_argument('--nosmooth', default=False, action='store_true',
 # Arguments for text-generation by resemble api
 parser.add_argument('--resemble_config_data', default='../resemble_tts/resemble_config.json',
                     help='JSON file containing details of voices to allow generation from Resemble API.')
-parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="Pulkit")
+parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="None")
 parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", default="None",
                     choices=['neutral', 'angry', 'annoyed', 'question', 'happy'])
 parser.add_argument("-p", "--project_id", help="project id at resemble", default="None")
 parser.add_argument("-t", "--text_title", help="text title inside project", default="Demo")
-parser.add_argument('--resemble_callback_url', default="http://b66aa125dcc9.ngrok.io",
+parser.add_argument('--resemble_callback_url', default="None",
                     help='Publically visible url which will recieve callback from Resemble once it is ready')
 
 # Arguments for text generation by Google
@@ -143,6 +141,10 @@ if input_type == 'text':
 
     if TTS == 'Resemble':
         user = args.user
+        if user == 'None':
+            raise ValueError('Provide a user for the resemble api generation -- through '
+                             '../resemble_tts/resemble_config.json. For more information, '
+                             'read Resemble TTS Setup in README.md')
         emotion = args.emotion
         if emotion == "None":
             emotion = None
@@ -158,6 +160,9 @@ if input_type == 'text':
         # User ID (uuid) for voice
         user_voice = resemble_config_data['users'][user]['voice_id']
         callback_url = args.resemble_callback_url
+        if callback_url == 'None':
+            raise ValueError('Provide a valid callback url --  '
+                             'read Resemble TTS Setup: Callback Server Setup in README.md')
 
 elif input_type == 'audio':
     audio_input_from = args.audio_input_from
@@ -221,7 +226,7 @@ def stream():
     logger.info('fifo exists now')
 
     process2 = ffmpeg_stream.start_ffmpeg_process2(fifo_filename_video, fifo_filename_audio, width, height, args.fps,
-                                                   args.port, video_output_to, video_output_path)
+                                                   args.output_port, video_output_to, video_output_path)
     logger.info('Output pipe set')
 
     # queues for sending audio packets from T1 (audio receiving) to T2 (audio generation) and T3
