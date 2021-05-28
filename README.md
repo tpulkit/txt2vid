@@ -1,13 +1,35 @@
 # txt2vid
-Repo containing code for txt2vid project. **ToDo: add paper link**
+Repo containing code for txt2vid project. Repo gives a proof-of-concept for the following compression pipeline 
+(for more details
+read paper **ToDo: add paper link**):
+![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.png).
 
-Pipeline:
-![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.png)
-Currently, does speech2vid in a streaming fashion using 
-[Wav2Lip](https://github.com/Rudrabha/Wav2Lip) codebase
-and using [ffmpeg-python](https://github.com/kkroening/ffmpeg-python/tree/master/examples#audiovideo-pipeline)
+## Use-cases:
+Currently, repo allows following use cases 
+![Use Cases](https://github.com/tpulkit/txt2vid/blob/main/images/repo_use_cases.png)
+
+Though pipeline is flexible and can be replaced by appropriate softwares performing same function, the repo currently
+uses and allows for [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) codebase for lip-syncing, 
+[Resemble]() or [Google]()  APIs for 
+text-to-speech (TTS) synthesis, and [Google]() API for speech-to-text synthesis (STT). 
+It uses [ffmpeg-python](https://github.com/kkroening/ffmpeg-python/tree/master/examples#audiovideo-pipeline)
 to enable streaming.
 
+NOTES: 
+* This setup assumes you will be working on a server-machine (**SM**)
+  as a  receiver, and place where the code will run and generate
+  the lip-synced video on the fly. In reality, this receiver can be 
+  your own local machine (**LM**) if there is access to GPU. 
+  In that case, some installments and port-forwarding for playing
+  streaming video using ffplay can be avoided.
+    
+* To reiterate: 
+    * S = Server (actual server)
+    * SM = Server-machine (server machine proxy of where processing
+      is happening, can be same as LM)
+    * LM = Local-machine (to be used for both audio input and
+      watching streaming content)  
+      
 ## Installation
 
 Setup requirements using following steps:
@@ -45,48 +67,7 @@ Setup requirements using following steps:
   * Face detection model: `s3fd.pth` should be present in 
     `Wav2Lip/face_detection/detection/sfd/s3fd.pth`
     
-## Use-cases:
-
-NOTES: 
-* This setup assumes you will be working on a server-machine (**SM**)
-  as a  receiver, and place where the code will run and generate
-  the lip-synced video on the fly. In reality, this receiver can be 
-  your own local machine (**LM**) if there is access to GPU. 
-  In that case, some installments and port-forwarding for playing
-  streaming video using ffplay can be avoided.
-  
-* There are multiple scripts enabling added functionalities from 
-  original wav2lip code and can be used to build other applications
-  as needed. This is a work-in-progress (e.g. text aspects will be
-  added with time). <br>
-  * audio-video (AV) files provided and saved as AV and lip-synced 
-    files. This is original wav2lip functionality. <br>
-    Script: ```Wav2Lip/inference.py```
-  * adding streaming read. This reads audio files in chunks and 
-    generates video files on the fly. Still writes as a file
-    and doesn't enable streaming. Latency of 200s exists here 
-    due to the wav2lip model parameters and would require changing
-    model to improve. <br>
-    Script: ```Wav2Lip/inference_streaming.py```
-  * adding AV synced streaming. This reads audio files in chunks 
-    and generates streamable AV and lip-synced video files on fly.
-    <br>
-    Script: ```Wav2Lip/inference_webstreaming.py```
-  * audio input from port mimicking recording at the actual server (**S**), 
-    while video input by user available at the SM. This receives audio
-    from a local machine and combines webstreaming to generate
-    streamable AV and lip-synced videos on fly. <br>
-    Script: ```Wav2Lip/inference_webstreaming_socket_audio.py```
-    
-* To reiterate: 
-    * S = Server (actual server)
-    * SM = Server-machine (server machine proxy of where processing
-      is happening, can be same as LM)
-    * LM = Local-machine (to be used for both audio input and
-      watching streaming content)  
-    
-Below are some added details for the streaming use-cases above:
-
+      
 ### Streaming audio-video using audio input from mic
 <pre>
 S (audio) -----> SM (AV-synced streamed video) -----> LM (view AV stream)
