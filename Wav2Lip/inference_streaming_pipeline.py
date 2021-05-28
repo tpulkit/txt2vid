@@ -123,7 +123,7 @@ parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", 
                     choices=['neutral', 'angry', 'annoyed', 'question', 'happy'])
 parser.add_argument("-p", "--project_id", help="project id at resemble", default="None")
 parser.add_argument("-t", "--text_title", help="text title inside project", default="Demo")
-parser.add_argument('--resemble_callback_url', default="https://7fd2364008af.ngrok.io",
+parser.add_argument('--resemble_callback_url', default="http://b66aa125dcc9.ngrok.io",
                     help='Publically visible url which will recieve callback from Resemble once it is ready')
 
 # Arguments for text generation by Google
