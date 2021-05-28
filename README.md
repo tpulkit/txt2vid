@@ -149,7 +149,7 @@ python inference_streaming_pipeline.py -h
 ```
 
 Ensure Google or Resemble TTS setup is done for all use-cases involving text as described
-[here](## Installation Instructions).
+[here](##-Installation Instructions).
 
 ### Storing txt2vid video as file using text/audio file available at SM
 <pre>
