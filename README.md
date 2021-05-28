@@ -23,7 +23,7 @@ to enable streaming.
   * [Resemble TTS Setup](#Resemble-TTS-Setup)
 * [Use Cases](#Use-Cases)
   * [Storing txt2vid video as file using text or audio file available at server](#Storing-txt2vid-video-as-file-using-text-or-audio-file-available-at-server)
-  * [Streaming txt2vid video on a port using audio and video file available at server](#Streaming-txt2vid-video-on-a-port-using-audio-and-video-file-available-at-server)
+  * [Streaming txt2vid video on a port using text or audio file available at server](#Streaming-txt2vid-video-on-a-port-using-text-or-audio-file-available-at-server)
   * [Streaming txt2vid video on a port using streaming input from a sender](#Streaming-txt2vid-video-on-a-port-using-streaming-input-from-a-sender)
 
 ## Installation Instructions
@@ -233,7 +233,7 @@ On server launch the streaming inference script, and save the generated video.
   The argument `<google_credential>` depends on the google setup and instructions to get it
   are provided in "Installation Instructions - Google TTS and STT". <br>
 
-### Streaming txt2vid video on a port using audio and video file available at server
+### Streaming txt2vid video on a port using text or audio file available at server
 <pre>
 server (AV-synced streamed video) -----> receiver (view AV stream)
 ^
