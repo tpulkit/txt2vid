@@ -116,13 +116,14 @@ parser.add_argument('--nosmooth', default=False, action='store_true',
 # Arguments for text-generation by resemble api
 parser.add_argument('--resemble_config_data', default='../resemble_tts/resemble_config.json',
                     help='JSON file containing details of voices to allow generation from Resemble API.')
-parser.add_argument("-u", "--user", help="name of user to pick voice in resemble project", default="None")
+parser.add_argument("-v", "--voice", default="None",
+                    help="name of voice to pick in resemble project from ../resemble_tts/resemble_config.json")
 parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", default="None",
                     choices=['neutral', 'angry', 'annoyed', 'question', 'happy'])
 parser.add_argument("-p", "--project_id", help="project id at resemble", default="None")
 parser.add_argument("-t", "--text_title", help="text title inside project", default="Demo")
 parser.add_argument('--resemble_callback_url', default="None",
-                    help='Publically visible url which will recieve callback from Resemble once it is ready')
+                    help='Publicly visible url which will receive callback from Resemble once it is ready')
 
 # Arguments for text generation by Google
 parser.add_argument('-gc', '--google_credential', default='../google_stt_tts/text2vid-3d1ad0183321.json',
@@ -140,25 +141,25 @@ if input_type == 'text':
     text_port = args.text_port
 
     if TTS == 'Resemble':
-        user = args.user
-        if user == 'None':
-            raise ValueError('Provide a user for the resemble api generation -- through '
+        voice = args.voice
+        if voice == 'None':
+            raise ValueError('Provide a voice for the resemble api generation -- through '
                              '../resemble_tts/resemble_config.json. For more information, '
                              'read Resemble TTS Setup in README.md')
         emotion = args.emotion
         if emotion == "None":
             emotion = None
         project_id = args.project_id
-        text_title = f'{args.text_title}_{user}_{emotion}'
+        text_title = f'{args.text_title}_{voice}_{emotion}'
         # Define resemble variables
         resemble_config_data = json.load(open(args.resemble_config_data))
-        # User API token for access
-        user_token = resemble_config_data['users'][user]['token']
+        # voice API token for access
+        voice_token = resemble_config_data['voices'][voice]['token']
         # Project to consider
         if project_id == "None":
             project_uuid = resemble_config_data['project_uuid']
-        # User ID (uuid) for voice
-        user_voice = resemble_config_data['users'][user]['voice_id']
+        # voice ID (uuid) for voice
+        voice_id = resemble_config_data['voices'][voice]['voice_id']
         callback_url = args.resemble_callback_url
         if callback_url == 'None':
             raise ValueError('Provide a valid callback url --  '
@@ -264,7 +265,7 @@ def stream():
                                                   args=(text_input_from, start_audio_input_thread,
                                                         last_generated_clip_id_queue_T5, text_file_path,
                                                         callback_url, text_port,
-                                                        project_uuid, user_token, text_title, user_voice, emotion))
+                                                        project_uuid, voice_token, text_title, voice_id, emotion))
             logger.info('T1: Text input thread launched -- Resemble')
 
         elif TTS == 'Google':
