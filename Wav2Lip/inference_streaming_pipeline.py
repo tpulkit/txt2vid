@@ -60,9 +60,9 @@ parser.add_argument('--audio_file_path', default='None',
                     help='path of audio file to be converted in case input from file.')
 
 # Port for incoming text or audio stream
-parser.add_argument('--text_port', default=50007, type=int,
+parser.add_argument('--text_port', type=int, default=50007,
                     help='Port for websocket server for text input (default: 50007)')  # Arbitrary non-privileged port
-parser.add_argument('--audio_port', default=50007, type=int,
+parser.add_argument('--audio_port', type=int, default=50007,
                     help='Port for websocket server for audio input (default: 50007)')  # Arbitrary non-privileged port
 
 # Port for Output Video Streaming
