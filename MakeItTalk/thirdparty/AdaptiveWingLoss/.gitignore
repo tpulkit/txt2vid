@@ -1,8 +1,0 @@
-# Python generated files
-*.pyc
-
-# Project related files
-ckpt/*.pth
-dataset/*
-!dataset/!.py
-experiments/*
