@@ -3,6 +3,7 @@ Wav2Lip/face_detection/detection/sfd/s3fd.pth
 Wav2Lip/results/*
 Wav2Lip/temp/*
 Wav2Lip/sample_data/*
+!Wav2Lip/sample_data/einstein*
 *pycache*
 Wav2Lip/image_animation/checkpoint_imgAnimation/*
 Wav2Lip/image_animation/movement_video.mp4
