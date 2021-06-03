@@ -120,13 +120,13 @@ parser.add_argument("-v", "--voice", default="None",
                     help="name of voice to pick in resemble project from ../resemble_tts/resemble_config.json")
 parser.add_argument("-e", "--emotion", help="emotion of voice to be generated", default="None",
                     choices=['neutral', 'angry', 'annoyed', 'question', 'happy'])
-parser.add_argument("-p", "--project_id", help="project id at resemble", default="None")
+parser.add_argument("-p", "--project_id", help="project id at resemble", default='None')
 parser.add_argument("-t", "--text_title", help="text title inside project", default="Demo")
-parser.add_argument('--resemble_callback_url', default="None",
+parser.add_argument('--resemble_callback_url', default='None',
                     help='Publicly visible url which will receive callback from Resemble once it is ready')
 
 # Arguments for text generation by Google
-parser.add_argument('-gc', '--google_credential', default='../google_stt_tts/text2vid-3d1ad0183321.json',
+parser.add_argument('-gc', '--google_credential', default='None',
                     help='Need google credential to use Google STT')
 
 
@@ -164,6 +164,11 @@ if input_type == 'text':
         if callback_url == 'None':
             raise ValueError('Provide a valid callback url --  '
                              'read Resemble TTS Setup: Callback Server Setup in README.md')
+    elif TTS == 'Google':
+        google_credential = args.google_credential
+        if google_credential == 'None':
+            raise ValueError('Provide a valid google crential json parameter -- '
+                             'read Google STT and TTS Setup in README.md')
 
 elif input_type == 'audio':
     audio_input_from = args.audio_input_from
@@ -274,7 +279,7 @@ def stream():
                                                         audio_packet_queue_T4, start_audio_input_thread,
                                                         kill_audio_input_thread, text_file_path,
                                                         args.text_port, args.audio_sr,
-                                                        args.google_credential
+                                                        google_credential
                                                         ))
             logger.info('T1: Text input thread launched -- Google')
 

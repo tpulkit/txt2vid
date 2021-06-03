@@ -101,7 +101,7 @@ To use Resemble API, ensure following steps are executed:
   [voice](https://app.resemble.ai/voices) by recording 50-100 samples of audio data.
   Create a new project.
   
-* Update `resemble_tts/resemble_config.json` with your data. This json has following structure:
+* Make `resemble_tts/resemble_config.json` with your data. This json has following structure:
   ```
   {
   "voices": { 
