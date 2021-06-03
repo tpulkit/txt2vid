@@ -17,3 +17,5 @@ dataset/*
 !dataset/*.sh
 !dataset/*.py
 subjective_study/*
+google_stt_tts/text2vid-3d1ad0183321.json
+resemble_tts/resemble_config.json
