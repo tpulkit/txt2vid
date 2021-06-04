@@ -104,12 +104,17 @@ To use Google API for TTS or STT, ensure following steps are executed:
     2. Cloud Text-to-Speech API
 * **Pass the path to the json key to the `-gc` parameter 
   for the relevant script runs using Google as STT/TTS.**
+* **Note that:** Google APIs might ask for a billing account to enable them. But they allow
+  free usage for reasonable number of characters. For pricing information you can 
+  see: 
+  [here](https://cloud.google.com/speech-to-text/pricing) and 
+  [here](https://cloud.google.com/text-to-speech/pricing).
   
 ### Resemble TTS Setup
 To use Resemble API, ensure following steps are executed:
 * Create an account on [resemble.ai website](https://app.resemble.ai) and create your own 
   [voice](https://app.resemble.ai/voices) by recording 50-100 samples of audio data.
-  Create a new project.
+  Resemble allows training one free voice clone with an account. Create a new project. 
   
 * Make `resemble_tts/resemble_config.json` with your data. This json has following structure:
   ```
@@ -119,7 +124,6 @@ To use Resemble API, ensure following steps are executed:
       "token": <api_token>,
       "voice_id": <voice_id>
       },
-    ...
     } 
   "project_uuid": <project_uuid>
   }
