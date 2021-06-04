@@ -29,7 +29,8 @@ to enable streaming.
 ## Demo Videos
 
 ### Streaming txt2vid video on a port using streaming text input from STT on a sender side
-![Demo2](https://user-images.githubusercontent.com/22584025/120795869-ae2ddd00-c557-11eb-989e-67d4a30d5398.mp4)
+Click on the video to also hear audio. 
+[![Demo2](https://user-images.githubusercontent.com/22584025/120798568-2b0e8600-c55b-11eb-85f8-906f3148e825.png)](https://user-images.githubusercontent.com/22584025/120795869-ae2ddd00-c557-11eb-989e-67d4a30d5398.mp4)
 
 ## Installation Instructions
 
