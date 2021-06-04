@@ -225,36 +225,53 @@ def audio_read_thread_from_callback(kill_audio_thread_callback, fifo_resemble_tt
 
 
 def text_to_audio_input_thread_handler(inqueue, outqueues, start_audio_input_thread, kill_audio_input_thread,
-                                       BYTE_WIDTH, NUM_AUDIO_SAMPLES_PER_STEP):
+                                       BYTE_WIDTH, NUM_AUDIO_SAMPLES_PER_STEP, add_silence=True):
     """
-    function to set up input audio connection, write output to queues
+    function to set up input audio connection, write output to queues. Writes in chunks of 200ms which was
+    determined by Wav2Lip minimum audio latency for pretrained model to work.
+    if add_silence is True, for every 200ms chunk if there is no audio received, the function adds silence.
+    This ensures that if there was silence in audio input, the audio output keeps it.
     """
     # we work in 200 ms chunks
     time_per_write = 0.2
     current_audio_packet_data = b''
     desired_len = BYTE_WIDTH * NUM_AUDIO_SAMPLES_PER_STEP
+    KILL_THREAD = False
     # block till we have start_audio_input_thread event (set when connection to peer established)
     while not start_audio_input_thread.is_set():
         pass
     while True:
         start_time = time.time()
-        # audio_bytes_to_write = b''
         while not inqueue.empty():
             # first check if we have new data coming in
             current_audio_packet_data += inqueue.get()
         if len(current_audio_packet_data) >= desired_len:
             audio_bytes_to_write = current_audio_packet_data[:desired_len]
             current_audio_packet_data = current_audio_packet_data[desired_len:]
-        else:
-            audio_bytes_to_write = current_audio_packet_data + bytearray(desired_len - len(current_audio_packet_data))
-            current_audio_packet_data = b''
-        for q in outqueues:
-            q.put(audio_bytes_to_write)
-        if kill_audio_input_thread.is_set() and len(current_audio_packet_data) == 0:
             for q in outqueues:
+                q.put(audio_bytes_to_write)
+        else:
+            if add_silence:
+                audio_bytes_to_write = current_audio_packet_data + bytearray(desired_len -
+                                                                             len(current_audio_packet_data))
+                current_audio_packet_data = b''
+                for q in outqueues:
+                    q.put(audio_bytes_to_write)
+
+        if KILL_THREAD and len(current_audio_packet_data) < desired_len:
+            # Throw in the remaining audio data in pipe as no more audio data is expected, and add kill character
+            # for processes.
+            audio_bytes_to_write = current_audio_packet_data + bytearray(desired_len -
+                                                                         len(current_audio_packet_data))
+            for q in outqueues:
+                q.put(audio_bytes_to_write)
                 q.put('BREAK')
             break
+        if kill_audio_input_thread.is_set():
+            KILL_THREAD = True
+
         time.sleep(time_per_write - time.time() + start_time)
+
 
 
 def audio_input_thread_handler(audio_input_from, outqueues, audio_port,

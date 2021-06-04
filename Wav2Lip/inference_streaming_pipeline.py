@@ -135,11 +135,14 @@ args = parser.parse_args()
 input_type = args.input_type
 TTS = args.text_to_speech
 
+# Add silence when waiting for TTS output
+add_silence = True
+
 if input_type == 'text':
     text_input_from = args.text_input_from
     text_file_path = args.text_file_path
     text_port = args.text_port
-
+    # Get appropriate params for TTS service
     if TTS == 'Resemble':
         voice = args.voice
         if voice == 'None':
@@ -169,6 +172,10 @@ if input_type == 'text':
         if google_credential == 'None':
             raise ValueError('Provide a valid google crential json parameter -- '
                              'read Google STT and TTS Setup in README.md')
+
+    # Don't add silence if reading from text file and writing to file
+    if (text_input_from == 'file') and (args.video_output_to == 'file'):
+        add_silence = False
 
 elif input_type == 'audio':
     audio_input_from = args.audio_input_from
@@ -288,7 +295,8 @@ def stream():
                                                      args=(audio_packet_queue_T4, outqueue_list,
                                                            start_audio_input_thread,
                                                            kill_audio_input_thread,
-                                                           args.BYTE_WIDTH, NUM_AUDIO_SAMPLES_PER_STEP))
+                                                           args.BYTE_WIDTH, NUM_AUDIO_SAMPLES_PER_STEP,
+                                                           add_silence))
         logger.info('T4: Audio input thread launched -- Resemble')
 
     elif input_type == 'audio':
