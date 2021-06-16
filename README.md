@@ -1,4 +1,4 @@
-# txt2vid
+# Txt2Vid
 
 Repo containing code for txt2vid project. Gives a proof-of-concept for the following compression 
 pipeline (for more details read paper **ToDo: add paper link**):
