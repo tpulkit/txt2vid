@@ -1,7 +1,7 @@
 # Txt2Vid
 
 Repo containing code for txt2vid project. Gives a proof-of-concept for the following compression 
-pipeline (for more details read paper **ToDo: add paper link**):
+pipeline (for more details read the paper on [arXiv](https://arxiv.org/abs/2106.14014)):
 
 ![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.png).
 
