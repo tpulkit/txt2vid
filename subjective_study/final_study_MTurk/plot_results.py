@@ -15,8 +15,8 @@ num_comps = len(df_data.index)
 print('Num of comparisons: ', num_comps)
 
 # Get compression numbers for txt2vid approach
-# in Bps (bytes per sec)
-# Taken from data on popeye2: /raid/tpulkit/txt2vid/dataset/originals
+# in bps (bits per sec)
+# Taken from data on popeye2: /raid/tpulkit/txt2vid/dataset/originals/texts
 
 txt_br = {
     'AM': 79.20,
