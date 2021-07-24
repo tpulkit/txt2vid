@@ -1,4 +1,4 @@
-# Txt2Vid
+# Txt2Vid: Ultra-Low Bitrate Compression of Talking-Head Videos via Text
 
 Repo containing code for txt2vid project. Gives a proof-of-concept for the following compression 
 pipeline (for more details read the paper on [arXiv](https://arxiv.org/abs/2106.14014)):
