@@ -3,6 +3,7 @@
 Repo containing code for txt2vid project. Gives a proof-of-concept for the following compression 
 pipeline (for more details read the paper on [arXiv](https://arxiv.org/abs/2106.14014)):
 
+![Motivation](https://github.com/tpulkit/txt2vid/blob/main/images/motivation.png)
 ![Pipeline](https://github.com/tpulkit/txt2vid/blob/main/images/block_diagram.png).
 
 Though the pipeline is flexible and can be replaced by appropriate software programs performing same function, 
