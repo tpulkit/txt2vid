@@ -1,0 +1,3 @@
+[submodule "subjective_study/final_study_MTurk/sureal"]
+	path = subjective_study/final_study_MTurk/sureal
+	url = https://github.com/Netflix/sureal.git
