@@ -17,5 +17,7 @@ dataset/*
 !dataset/*.sh
 !dataset/*.py
 subjective_study/*
+!subjective_study/final_study_MTurk
+!subjective_study/pilot_study
 google_stt_tts/text2vid-3d1ad0183321.json
 resemble_tts/resemble_config.json
