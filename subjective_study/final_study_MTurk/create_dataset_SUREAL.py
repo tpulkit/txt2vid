@@ -22,8 +22,11 @@ num_contents = len(contents)
 # we also do 3 sanity checks
 # each participant is shown 'num_comparison_per_content' comparison videos corresponding to
 # one the 'num_contents' subjects
-num_comparison_per_content = (num_avc_comps + num_av1_comps) * 2 + 3
+num_nonsantiy_comparison_per_content = (num_avc_comps + num_av1_comps) * 2
+num_sanity_comparison_per_content = 3
+num_comparison_per_content = num_nonsantiy_comparison_per_content + num_sanity_comparison_per_content
 num_comps = num_contents * num_comparison_per_content  # 186 different comparisons in study
+num_nonsanity_comps = num_contents * num_nonsantiy_comparison_per_content # 168 different actual comparisons
 results_file = 'dataset_SUREAL.py'
 
 # Read data
@@ -39,6 +42,7 @@ all_vids = np.union1d(pd.unique(df_pairs['video_A']), pd.unique(df_pairs['video_
 all_vids_idx = dict()
 for i, vid in enumerate(all_vids):
     all_vids_idx[vid] = i
+num_total_vids = len(all_vids)
 
 # Generate dataset as required by SUREAL dataset files
 dataset_SUREAL = {
@@ -75,7 +79,8 @@ starting_comp, end_comp = 0, num_comps
 # dis_asset_id_per_ref = {}
 # dis_asset_id_to_content = {}
 asset_id_prev = None
-dis_dict = [None] * (num_contents * 2)  # 2 videos per content belonging to resemble audio and original audio
+# dis_dict = [None] * (num_contents * 2)  # 2 videos per content belonging to resemble audio and original audio
+dis_dict = [None] * num_total_vids
 
 for i in range(starting_comp, end_comp):
     # comparison ID
@@ -110,10 +115,20 @@ for i in range(starting_comp, end_comp):
 
     # Generated distorted video dict
     if asset_id_prev != video_A_idx:
-        dis_dict[content_id] = {
+        dis_dict[video_A_idx] = {
             'content_id': content_id,
             'asset_id': video_A_idx,
             'path': video_A,
+            'os': dict()
+        }
+
+    # If the compared video is not one of Wav2Lip generatd (resemble or original audio) then
+    # add a proxy element in the dataset comparison list
+    if video_B not in ref_content_idx.keys():
+        dis_dict[video_B_idx] = {
+            'content_id': content_id,
+            'asset_id': video_B_idx,
+            'path': video_B,
             'os': dict()
         }
 
@@ -124,9 +139,9 @@ for i in range(starting_comp, end_comp):
         if values[k] != values[k]:
             continue
         if values[k] == video_A:
-            dis_dict[content_id]['os'][(curr_subj, video_B_idx)] = 1
+            dis_dict[video_A_idx]['os'][(curr_subj, video_B_idx)] = 1
         elif values[k] == video_B:
-            continue
+            dis_dict[video_B_idx]['os'][(curr_subj, video_A_idx)] = 1
         else:
             raise ValueError(f'Data not in the expected format.')
 
@@ -137,7 +152,7 @@ dataset_SUREAL['dis_videos'] = dis_dict
 # Write dataset file
 with open(results_file, 'w+') as outfile:
     outfile.write('dataset_name = \"Txt2Vid Subjective Study\"\n')
-    outfile.write('ref_videos = ')
+    outfile.write('\nref_videos = ')
     pprint(dataset_SUREAL['ref_videos'], stream=outfile)
     outfile.write('\ndis_videos = ')
     pprint(dataset_SUREAL['dis_videos'], stream=outfile)
