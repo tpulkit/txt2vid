@@ -50,36 +50,22 @@ dataset_SUREAL = {
     'dis_videos': list()
 }
 
-# add ref videos to json
-# 2 per content, one for original audio and another for resemble audio
-# For now skips 2 of the sanity comparison per content involving just the encoded videos
+# add ref videos to json: 1 corresponding to each content
 for content_id, content in enumerate(contents):
     ref_dict = {
-        'content_id': content_id * 2,
-        'content_name': f'{content}_originalAudio',
-        'path': f'{content}_driving_video_AVC_crf20_original_audio_br10.mp4'
-    }
-    dataset_SUREAL['ref_videos'].append(ref_dict)
-
-    ref_dict = {
-        'content_id': content_id * 2 + 1,
-        'content_name': f'{content}_resembleAudio',
-        'path': f'{content}_driving_video_AVC_crf20_resemble_audio.mp4'
+        'content_id': content_id,
+        'content_name': f'{content}',
     }
     dataset_SUREAL['ref_videos'].append(ref_dict)
 
 # also get content name to content id dict for reference videos
 ref_content_idx = dict()
 for i, ref in enumerate(dataset_SUREAL['ref_videos']):
-    ref_content_idx[ref['path']] = ref['content_id']
+    ref_content_idx[ref['content_name']] = ref['content_id']
 
 # Add distortion videos to json based on collected data
 starting_comp, end_comp = 0, num_comps
-# # Keep dis_video asset_id
-# dis_asset_id_per_ref = {}
-# dis_asset_id_to_content = {}
-asset_id_prev = None
-# dis_dict = [None] * (num_contents * 2)  # 2 videos per content belonging to resemble audio and original audio
+
 dis_dict = [None] * num_total_vids
 
 for i in range(starting_comp, end_comp):
@@ -95,26 +81,18 @@ for i in range(starting_comp, end_comp):
     # asset IDs are basically video-IDs
     video_A_idx = all_vids_idx[video_A]
     video_B_idx = all_vids_idx[video_B]
-    # Content ID (ref Video ID) of Video A.
-    # Content IDs are only resemble audio or original audio, per different person's content.
-    # Don't compare sanity checks where the video A is neither resemble audio or original audio. E.g. where only
-    # video or audio changes are compared.
 
-    if video_A in ref_content_idx.keys():
-        content_id = ref_content_idx[video_A]
-    else:
+    content_id = ref_content_idx[video_A.split('_')[0]]
+
+    # skip sanity check comparisons. only one of video_A and video_B should be driving_video,
+    # i.e., obtained from either original audio or resemble audio
+    video_A_driving = (video_A.split('_')[1] == 'driving')
+    video_B_driving = (video_B.split('_')[1] == 'driving')
+    if not(video_A_driving ^ video_B_driving):
         continue
 
-    # # For this content, keep adding asset_IDs
-    # if content_id not in dis_asset_id_per_ref.keys():
-    #     dis_asset_id_per_ref[content_id] = 0
-    #     dis_asset_id_to_content[content_id] = []
-    # else:
-    #     dis_asset_id_per_ref[content_id] += 1
-    # dis_asset_id_to_content[content_id].append(video_B)
-
-    # Generated distorted video dict
-    if asset_id_prev != video_A_idx:
+    # Generate distorted video dict if it didn't exist already
+    if not dis_dict[video_A_idx]:
         dis_dict[video_A_idx] = {
             'content_id': content_id,
             'asset_id': video_A_idx,
@@ -122,9 +100,10 @@ for i in range(starting_comp, end_comp):
             'os': dict()
         }
 
-    # If the compared video is not one of Wav2Lip generatd (resemble or original audio) then
-    # add a proxy element in the dataset comparison list
-    if video_B not in ref_content_idx.keys():
+    # If the compared video is not one of Wav2Lip generated (resemble or original audio) then
+    # add a proxy element in the dataset comparison list.
+    # Currently ignoring sanity checks before, so OK to just make a new one if video_B didn't exist before
+    if not dis_dict[video_B_idx]:
         dis_dict[video_B_idx] = {
             'content_id': content_id,
             'asset_id': video_B_idx,
@@ -144,8 +123,6 @@ for i in range(starting_comp, end_comp):
             dis_dict[video_B_idx]['os'][(curr_subj, video_A_idx)] = 1
         else:
             raise ValueError(f'Data not in the expected format.')
-
-    asset_id_prev = video_A_idx
 
 dataset_SUREAL['dis_videos'] = dis_dict
 
