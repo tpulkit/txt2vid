@@ -12,9 +12,9 @@ data_file = 'Video Quality Survey5_June 18, 2021_07.00.csv'
 comp_pairs_file = 'Pair_ID.csv'
 
 contents = ['AM', 'MS', 'PP', 'PT', 'SC', 'YL']
-num_avc_comps = 8
+num_avc_comps = 8 # 4 video CRFs * 2 audio BRs
 props_avc = ['26_2', '28_2', '30_2', '32_4']  # crf_ds
-num_av1_comps = 6
+num_av1_comps = 6 # 3 video CRFs * 2 audio BRs
 props_av1 = ['60_2', '63_1', '63_2']
 
 num_contents = len(contents)
@@ -22,7 +22,7 @@ num_contents = len(contents)
 # we also do 3 sanity checks
 # each participant is shown 'num_comparison_per_content' comparison videos corresponding to
 # one the 'num_contents' subjects
-num_comparison_per_content = (num_av1_comps + num_av1_comps) * 2 + 3
+num_comparison_per_content = (num_avc_comps + num_av1_comps) * 2 + 3
 num_comps = num_contents * num_comparison_per_content  # 186 different comparisons in study
 results_file = 'dataset_SUREAL.py'
 
@@ -40,7 +40,7 @@ all_vids_idx = dict()
 for i, vid in enumerate(all_vids):
     all_vids_idx[vid] = i
 
-# Generate JSON as required by SUREAL dataset files
+# Generate dataset as required by SUREAL dataset files
 dataset_SUREAL = {
     'ref_videos': list(),
     'dis_videos': list()
@@ -76,10 +76,10 @@ starting_comp, end_comp = 0, num_comps
 # dis_asset_id_to_content = {}
 asset_id_prev = None
 dis_dict = [None] * (num_contents * 2)  # 2 videos per content belonging to resemble audio and original audio
+
 for i in range(starting_comp, end_comp):
     # comparison ID
     curr_comp = f"vid_{i}"
-
     # extract user data for this comparison
     ser = pd.Series(df_data[curr_comp]).head(num_rows)
     values = ser[2:2 + num_rows].values
@@ -94,6 +94,7 @@ for i in range(starting_comp, end_comp):
     # Content IDs are only resemble audio or original audio, per different person's content.
     # Don't compare sanity checks where the video A is neither resemble audio or original audio. E.g. where only
     # video or audio changes are compared.
+
     if video_A in ref_content_idx.keys():
         content_id = ref_content_idx[video_A]
     else:
@@ -134,7 +135,10 @@ for i in range(starting_comp, end_comp):
 dataset_SUREAL['dis_videos'] = dis_dict
 
 # Write dataset file
-# with open(results_file, 'w') as outfile:
-#     json.dump(dataset_SUREAL, outfile, indent=4)
 with open(results_file, 'w+') as outfile:
-    pprint(dataset_SUREAL, stream=outfile)
+    outfile.write('dataset_name = \"Txt2Vid Subjective Study\"\n')
+    outfile.write('ref_videos = ')
+    pprint(dataset_SUREAL['ref_videos'], stream=outfile)
+    outfile.write('\ndis_videos = ')
+    pprint(dataset_SUREAL['dis_videos'], stream=outfile)
+
