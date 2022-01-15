@@ -387,7 +387,7 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
     # which reduces the offsets of the consecutive mel chunks, and makes sure we get enough
     # frames for each audio chunk.
     # NOTE: The value has been chosen for fps=25, and NUM_AUDIO_SAMPLES_PER_STEP 3200. For other values, please recalculate
-    mel_idx_multiplier = 0.1
+    mel_idx_multiplier = 1
 
     model = load_model(checkpoint_path, device)
     print("Model loaded")
@@ -430,8 +430,8 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
             mel_chunks.append(mel[:, start_idx: start_idx + mel_step_size])
             i += 1
             
-        print("Length of mel chunks: {}".format(len(mel_chunks)))
-
+           
+        print("frames per audio chunck: {}".format(len(mel_chunks)))
         batch_size = wav2lip_batch_size
         gen = datagen(full_frames, face_det_results, mel_chunks, frames_done,
                       static, img_size, wav2lip_batch_size)

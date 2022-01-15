@@ -18,4 +18,12 @@ dataset/*
 !dataset/*.py
 subjective_study/*
 google_stt_tts/text2vid-3d1ad0183321.json
+Wav2Lip/google_fifo.sh
+Wav2Lip/google_fiso.sh
+Wav2Lip/resemble_fifo.sh
+Wav2Lip/resemble_fiso.sh
+Wav2Lip/resemble_siso.sh
+lithe-hallway-304516-af6dab2d5e28.json
 resemble_tts/resemble_config.json
+Wav2Lip/lithe-hallway-304516-af6dab2d5e28.json
+Wav2Lip/resemble_tts/resemble_config.json

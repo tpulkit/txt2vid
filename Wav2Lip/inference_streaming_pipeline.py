@@ -202,8 +202,8 @@ NUM_AUDIO_SAMPLES_PER_STEP = np.ceil(args.audio_sr * 0.2).astype('int')  # 200 m
 
 # mel_step_size: size of each mel_chunk (except last one which can be shorter)
 # can't be made very small due to neural network architecture (should be > roughly 3)
-mel_step_size = 40
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+mel_step_size = 17
+device = 'cpu'#'cuda' if torch.cuda.is_available() else 'cpu'
 print('Using {} for inference.'.format(device))
 
 logger = logging.getLogger(__name__)
