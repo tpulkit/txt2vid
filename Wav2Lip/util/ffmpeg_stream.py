@@ -219,7 +219,7 @@ def audio_thread_handler(fifo_filename_audio, process1_audio, audio_bytes_per_vi
 
 def run(in_filename, process_frame, port):
     width, height = get_video_info(in_filename)
-    fps = 25  # video fps
+    fps = 7.5  # video fps
     process1 = start_ffmpeg_process1(in_filename, fps)
     process1_audio = start_ffmpeg_process1_audio(in_filename)
 
@@ -235,7 +235,7 @@ def run(in_filename, process_frame, port):
     os.mkfifo(fifo_filename_audio)
 
     process2 = start_ffmpeg_process2(fifo_filename_video, fifo_filename_audio, width, height, fps, port)
-    audio_bytes_per_video_frame = 640 * 2  # 2 bytes, 640 audio frames (16000/25)
+    audio_bytes_per_video_frame = 2133 * 2  # 2 bytes, 640 audio frames (16000/25)
 
     # we run audio and video in separate threads otherwise the fifo opening blocks
 

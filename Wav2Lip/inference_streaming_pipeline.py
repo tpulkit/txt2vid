@@ -85,7 +85,7 @@ parser.add_argument('--face', type=str,
 parser.add_argument('--static', type=bool,
                     help='If True, then use only first video frame for inference', default=False)
 parser.add_argument('--fps', type=float, help='Can be specified only if input is a static image (default: 25)',
-                    default=25., required=False)
+                    default=10., required=False)
 
 parser.add_argument('--pads', nargs='+', type=int, default=[0, 10, 0, 0],
                     help='Padding (top, bottom, left, right). Please adjust to include chin at least')
@@ -202,7 +202,7 @@ NUM_AUDIO_SAMPLES_PER_STEP = np.ceil(args.audio_sr * 0.2).astype('int')  # 200 m
 
 # mel_step_size: size of each mel_chunk (except last one which can be shorter)
 # can't be made very small due to neural network architecture (should be > roughly 3)
-mel_step_size = 16
+mel_step_size = 40
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Using {} for inference.'.format(device))
 

@@ -387,7 +387,7 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
     # which reduces the offsets of the consecutive mel chunks, and makes sure we get enough
     # frames for each audio chunk.
     # NOTE: The value has been chosen for fps=25, and NUM_AUDIO_SAMPLES_PER_STEP 3200. For other values, please recalculate
-    mel_idx_multiplier = 15.0 / fps
+    mel_idx_multiplier = 0.1
 
     model = load_model(checkpoint_path, device)
     print("Model loaded")
@@ -429,8 +429,8 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
                 break
             mel_chunks.append(mel[:, start_idx: start_idx + mel_step_size])
             i += 1
-
-        # print("Length of mel chunks: {}".format(len(mel_chunks)))
+            
+        print("Length of mel chunks: {}".format(len(mel_chunks)))
 
         batch_size = wav2lip_batch_size
         gen = datagen(full_frames, face_det_results, mel_chunks, frames_done,
@@ -459,7 +459,7 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
                 # write to pipe
                 ffmpeg_stream.write_video_frame(fifo_video_out, out_frame_RGB)
 
-        print('Generated', frames_done, 'frames from', '{:.1f}'.format(audio_received), 's of received audio')
+        print('Generated', frames_done, 'frames from', '{:.1f}'.format(audio_received), 's of received audio', 'at frame rate', fps , 'fps ')
 
         audio_data = audio_inqueue.get()
 

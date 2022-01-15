@@ -117,9 +117,9 @@ def datagen(frames, face_det_results, mels):
 
 		yield img_batch, mel_batch, frame_batch, coords_batch
 
-fps = 25
+fps = 10
 mel_step_size = 16
-mel_idx_multiplier = 80./fps
+mel_idx_multiplier = 6./fps
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Using {} for inference.'.format(device))
 
