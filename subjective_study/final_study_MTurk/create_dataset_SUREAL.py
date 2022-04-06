@@ -6,6 +6,7 @@ import json
 import numpy as np
 import pandas as pd
 from pprint import pprint
+import os
 
 # Data files and test properties
 data_file = 'Video Quality Survey5_June 18, 2021_07.00.csv'
@@ -27,7 +28,10 @@ num_sanity_comparison_per_content = 3
 num_comparison_per_content = num_nonsantiy_comparison_per_content + num_sanity_comparison_per_content
 num_comps = num_contents * num_comparison_per_content  # 186 different comparisons in study
 num_nonsanity_comps = num_contents * num_nonsantiy_comparison_per_content # 168 different actual comparisons
-results_file = 'dataset_SUREAL.py'
+
+num_videos_per_content = (num_av1_comps + num_avc_comps + 2) # 16 different videos per content
+
+results_dir = 'datasets_SUREAL'
 
 # Read data
 df_data = pd.read_csv(data_file)
@@ -53,7 +57,7 @@ dataset_SUREAL = {
 # add ref videos to json: 1 corresponding to each content
 for content_id, content in enumerate(contents):
     ref_dict = {
-        'content_id': content_id,
+        'content_id': content_id + 1, # start indexing content from 1 instead of 0
         'content_name': f'{content}',
     }
     dataset_SUREAL['ref_videos'].append(ref_dict)
@@ -66,8 +70,11 @@ for i, ref in enumerate(dataset_SUREAL['ref_videos']):
 # Add distortion videos to json based on collected data
 starting_comp, end_comp = 0, num_comps
 
-dis_dict = [None] * num_total_vids
+# 2 because we compare resemble from text and resemble from audio
+dis_dict = [None] * num_videos_per_content
+# dis_dict = [None] * num_total_vids
 
+prev_content_id = 1
 for i in range(starting_comp, end_comp):
     # comparison ID
     curr_comp = f"vid_{i}"
@@ -79,10 +86,31 @@ for i in range(starting_comp, end_comp):
     video_A = df_pairs.loc[(df_pairs["Global_ID"] == curr_comp)]['video_A'].values[0]
     video_B = df_pairs.loc[(df_pairs["Global_ID"] == curr_comp)]['video_B'].values[0]
     # asset IDs are basically video-IDs
-    video_A_idx = all_vids_idx[video_A]
-    video_B_idx = all_vids_idx[video_B]
+    video_A_idx = all_vids_idx[video_A] % num_videos_per_content
+    video_B_idx = all_vids_idx[video_B] % num_videos_per_content
 
     content_id = ref_content_idx[video_A.split('_')[0]]
+
+    # # For now just generate for 1 content to debug analysis
+    # if content_id != 0:
+    #     continue
+
+    # Write dataset file if content changed
+    if prev_content_id != content_id:
+        dataset_SUREAL['dis_videos'] = dis_dict
+
+        results_file = os.path.join(results_dir, f'Content{prev_content_id}.py')
+        with open(results_file, 'w+') as outfile:
+            outfile.write('dataset_name = \"Txt2Vid Subjective Study\"\n')
+            outfile.write('ref_score = 0\n')
+            outfile.write('\nref_videos = ')
+            pprint(dataset_SUREAL['ref_videos'], stream=outfile)
+            outfile.write('\ndis_videos = ')
+            pprint(dataset_SUREAL['dis_videos'], stream=outfile)
+
+        prev_content_id = content_id
+        dis_dict = [None] * num_videos_per_content
+        # dis_dict = [None] * num_total_vids
 
     # skip sanity check comparisons. only one of video_A and video_B should be driving_video,
     # i.e., obtained from either original audio or resemble audio
@@ -124,13 +152,15 @@ for i in range(starting_comp, end_comp):
         else:
             raise ValueError(f'Data not in the expected format.')
 
+# Write content for last content
 dataset_SUREAL['dis_videos'] = dis_dict
-
-# Write dataset file
+results_file = os.path.join(results_dir, f'Content{content_id}.py')
 with open(results_file, 'w+') as outfile:
     outfile.write('dataset_name = \"Txt2Vid Subjective Study\"\n')
+    outfile.write('ref_score = 0\n')
     outfile.write('\nref_videos = ')
     pprint(dataset_SUREAL['ref_videos'], stream=outfile)
     outfile.write('\ndis_videos = ')
     pprint(dataset_SUREAL['dis_videos'], stream=outfile)
+
 

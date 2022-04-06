@@ -76,6 +76,13 @@ wav2lip_Origaudio_vs_avc = np.ones((num_avc_comps, num_contents, 2)) * -1
 wav2lip_RSaudio_vs_av1 = np.ones((num_av1_comps, num_contents, 2)) * -1
 wav2lip_Origaudio_vs_av1 = np.ones((num_av1_comps, num_contents, 2)) * -1
 
+# Error margins for 95% CI
+c_95 = 1.96
+wav2lip_RSaudio_vs_avc_error = np.ones((num_avc_comps, num_contents)) * -1
+wav2lip_Origaudio_vs_avc_error = np.ones((num_avc_comps, num_contents)) * -1
+wav2lip_RSaudio_vs_av1_error = np.ones((num_av1_comps, num_contents)) * -1
+wav2lip_Origaudio_vs_av1_error = np.ones((num_av1_comps, num_contents)) * -1
+
 # Sanity checks
 # fraction RSaudio is better than OrigAudio
 wav2lip_RSaudio_vs_Origaudio = np.ones((num_contents)) * -1
@@ -102,15 +109,21 @@ for i in range(num_comps):
     assert content_A == content_B, 'not same contents compared, something went wrong.'
     content_idx = contents.index(content_A)
 
+    p = count_A / (count_A + count_B)
+    br_ratio_txt = (video_BR_B + audio_BR_B) / txt_br[content_A]
+    br_ratio_audio = (video_BR_B + audio_BR_B) / audio_br[content_A]
+    ci_95 = c_95 * np.sqrt((p * (1 - p)) / (count_A + count_B))
+
     if (codec_A == 'wav2lip_resemble') and (codec_B == 'AVC' or codec_B == 'AV1'):
         if codec_B == 'AVC':
             video_idx = props_avc.index(f'{crf_B}_{ds_B}')
             audio_idx = 1 if audio_BR_B < 7500 else 0
 
-            wav2lip_RSaudio_vs_avc[audio_idx * (num_avc_comps // 2) + video_idx, content_idx, 1] = \
-                count_A / (count_A + count_B)
-            wav2lip_RSaudio_vs_avc[audio_idx * (num_avc_comps // 2) + video_idx, content_idx, 0] = \
-                (video_BR_B + audio_BR_B) / txt_br[content_A]
+            wav2lip_RSaudio_vs_avc[audio_idx * (num_avc_comps // 2) + video_idx, content_idx, 1] = p
+            wav2lip_RSaudio_vs_avc[audio_idx * (num_avc_comps // 2) + video_idx, content_idx, 0] = br_ratio_txt
+
+            # Error assuming binomial distribution
+            wav2lip_RSaudio_vs_avc_error[audio_idx * (num_avc_comps // 2) + video_idx, content_idx] = ci_95
 
             # print(video_BR_B, audio_BR_B, txt_br[content_A])
 
@@ -118,45 +131,45 @@ for i in range(num_comps):
             video_idx = props_av1.index(f'{crf_B}_{ds_B}')
             audio_idx = 1 if audio_BR_B < 7500 else 0
 
-            wav2lip_RSaudio_vs_av1[audio_idx * (num_av1_comps // 2) + video_idx, content_idx, 1] = \
-                count_A / (count_A + count_B)
-            wav2lip_RSaudio_vs_av1[audio_idx * (num_av1_comps // 2) + video_idx, content_idx, 0] = \
-                (video_BR_B + audio_BR_B) / txt_br[content_A]
+            wav2lip_RSaudio_vs_av1[audio_idx * (num_av1_comps // 2) + video_idx, content_idx, 1] = p
+            wav2lip_RSaudio_vs_av1[audio_idx * (num_av1_comps // 2) + video_idx, content_idx, 0] = br_ratio_txt
+
+            wav2lip_RSaudio_vs_av1_error[audio_idx * (num_av1_comps // 2) + video_idx, content_idx] = ci_95
 
     elif (codec_A == 'wav2lip_orig') and (codec_B == 'AVC' or codec_B == 'AV1'):
         if codec_B == 'AVC':
             video_idx = props_avc.index(f'{crf_B}_{ds_B}')
             audio_idx = 1 if audio_BR_B < 7500 else 0
 
-            wav2lip_Origaudio_vs_avc[audio_idx * (num_avc_comps // 2) + video_idx, content_idx, 1] = \
-                count_A / (count_A + count_B)
-            wav2lip_Origaudio_vs_avc[audio_idx * (num_avc_comps // 2) + video_idx, content_idx, 0] = \
-                (video_BR_B + audio_BR_B) / audio_br[content_A]
+            wav2lip_Origaudio_vs_avc[audio_idx * (num_avc_comps // 2) + video_idx, content_idx, 1] = p
+            wav2lip_Origaudio_vs_avc[audio_idx * (num_avc_comps // 2) + video_idx, content_idx, 0] = br_ratio_audio
+
+            wav2lip_Origaudio_vs_avc_error[audio_idx * (num_avc_comps // 2) + video_idx, content_idx] = ci_95
 
         elif codec_B == 'AV1':
             video_idx = props_av1.index(f'{crf_B}_{ds_B}')
             audio_idx = 1 if audio_BR_B < 7500 else 0
 
-            wav2lip_Origaudio_vs_av1[audio_idx * (num_av1_comps // 2) + video_idx, content_idx, 1] = \
-                count_A / (count_A + count_B)
-            wav2lip_Origaudio_vs_av1[audio_idx * (num_av1_comps // 2) + video_idx, content_idx, 0] = \
-                (video_BR_B + audio_BR_B) / audio_br[content_A]
+            wav2lip_Origaudio_vs_av1[audio_idx * (num_av1_comps // 2) + video_idx, content_idx, 1] = p
+            wav2lip_Origaudio_vs_av1[audio_idx * (num_av1_comps // 2) + video_idx, content_idx, 0] = br_ratio_audio
+
+            wav2lip_Origaudio_vs_av1_error[audio_idx * (num_av1_comps // 2) + video_idx, content_idx] = ci_95
 
     else:
         if (codec_A == 'wav2lip_resemble') and (codec_B == 'wav2lip_orig'):
-            wav2lip_RSaudio_vs_Origaudio[content_idx] = count_A / (count_A + count_B)
+            wav2lip_RSaudio_vs_Origaudio[content_idx] = p
         elif (codec_A == 'wav2lip_orig') and (codec_B == 'wav2lip_resemble'):
-            wav2lip_RSaudio_vs_Origaudio[content_idx] = count_B / (count_A + count_B)
+            wav2lip_RSaudio_vs_Origaudio[content_idx] = (1 - p)
         elif (codec_A == 'AVC') and (codec_B == 'AVC'):
             if (crf_A == '26') and (crf_B == '32'):
-                avc_video_deg[content_idx] = count_A / (count_A + count_B)
+                avc_video_deg[content_idx] = p
             elif (crf_A == '32') and (crf_B == '26'):
-                avc_video_deg[content_idx] = count_B / (count_A + count_B)
+                avc_video_deg[content_idx] = (1 - p)
             elif (crf_A == '26') and (crf_B == '26'):
                 if (audio_BR_A > 7500) and (audio_BR_B < 7500):
-                    avc_audio_deg[content_idx] = count_A / (count_A + count_B)
+                    avc_audio_deg[content_idx] = p
                 elif (audio_BR_A < 7500) and (audio_BR_B > 7500):
-                    avc_audio_deg[content_idx] = count_B / (count_A + count_B)
+                    avc_audio_deg[content_idx] = (1 - p)
 
         else:
             raise ValueError(f'Some unexpected comparison occured. A: {video_A}, B: {video_B}')
@@ -184,7 +197,8 @@ def plot_all_points(data, title, xlabel, ylabel, save_fig=False, save_path=None)
         plt.savefig(save_path)
 
 
-def plot_contents_sep(data, title, xlabel, ylabel, save_fig=False, save_path=None, xticks=None, plot_for='demo'):
+def plot_contents_sep(data, title, xlabel, ylabel, save_fig=False, save_path=None, xticks=None, plot_for='demo',
+                      errorBar=False, error_data=None):
     '''
     :param data: data in format of (#comps)X(#contents)X(2) where 2 for compression gain and #users preferring one
      method
@@ -192,7 +206,10 @@ def plot_contents_sep(data, title, xlabel, ylabel, save_fig=False, save_path=Non
     fig, ax = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(12, 9))
     for i in range(len(contents)):
         j, k = i // 3, i % 3
-        ax[j, k].plot(data[:, i, 0], data[:, i, 1] * 100, 'o')
+        if not errorBar:
+            ax[j, k].plot(data[:, i, 0], data[:, i, 1] * 100, 'o')
+        else:
+            ax[j, k].errorbar(data[:, i, 0], data[:, i, 1] * 100, yerr=error_data[:, i] * 100, fmt=' ', marker='o')
         if plot_for == 'demo':
             ax[j, k].set_title(contents[i])
             label_fontsize = 16
@@ -208,7 +225,7 @@ def plot_contents_sep(data, title, xlabel, ylabel, save_fig=False, save_path=Non
         if xticks is not None:
             ax[j, k].set_xlim([min(xticks), max(xticks)])
             ax[j, k].set_xticks(xticks)
-        matplotlib.rcParams['font.weight'] = 'light'
+        # matplotlib.rcParams['font.weight'] = 'light'
         ax[j, k].axhline(50, color='b', ls='--')
     fig.text(0.5, 0.01, xlabel, ha='center', fontsize=label_fontsize)
     fig.text(0.01, 0.5, ylabel, va='center', rotation='vertical', fontsize=label_fontsize)
@@ -286,6 +303,49 @@ plot_contents_sep(wav2lip_Origaudio_vs_av1,
                   'figures/Origaudio_vs_av1_subplots.pdf',
                   xticks=[1, 2, 3, 4],
                   plot_for='paper')  # demo or paper
+
+## Figures as subplots with errorbars
+plot_contents_sep(wav2lip_RSaudio_vs_avc,
+                  f'Txt2Vid vs AVC; Mean # of subjects = {mean_num_valid_subjects:0.1f}',
+                  'Ratio of Standard Codec and Txt2Vid Bitrate',
+                  'Users Preferring Txt2Vid Method (%)',
+                  True,
+                  'figures/RSaudio_vs_avc_subplots_errorBar.pdf',
+                  # xticks=[100, 500, 1000, 1500, 2000, 2500],
+                  xticks=[100, 1000, 2000, 3000],
+                  plot_for='paper',
+                  errorBar=True,
+                  error_data=wav2lip_RSaudio_vs_avc_error)  # demo or paper
+plot_contents_sep(wav2lip_Origaudio_vs_avc,
+                  f'Audio2Vid vs AVC; Mean # of subjects = {mean_num_valid_subjects:0.1f}',
+                  'Ratio of Standard Codec and Txt2Vid Bitrate',
+                  'Users Preferring Txt2Vid Method (%)',
+                  True,
+                  'figures/Origaudio_vs_avc_subplots_errorBar.pdf',
+                  xticks=[1, 5, 10, 15, 20],
+                  plot_for='paper',
+                  errorBar=True,
+                  error_data=wav2lip_Origaudio_vs_avc_error)  # demo or paper
+plot_contents_sep(wav2lip_RSaudio_vs_av1,
+                  f'Txt2Vid vs AV1; Mean # of subjects = {mean_num_valid_subjects:0.1f}',
+                  'Ratio of Standard Codec and Txt2Vid Bitrate',
+                  'Users Preferring Txt2Vid Method (%)',
+                  True,
+                  'figures/RSaudio_vs_av1_subplots_errorBar.pdf',
+                  xticks=[100, 200, 300, 400],
+                  plot_for='paper',
+                  errorBar=True,
+                  error_data=wav2lip_RSaudio_vs_av1_error)  # demo or paper
+plot_contents_sep(wav2lip_Origaudio_vs_av1,
+                  f'Audio2Vid vs AV1; Mean # of subjects = {mean_num_valid_subjects:0.1f}',
+                  'Ratio of Standard Codec and Txt2Vid Bitrate',
+                  'Users Preferring Txt2Vid Method (%)',
+                  True,
+                  'figures/Origaudio_vs_av1_subplots_errorBar.pdf',
+                  xticks=[1, 2, 3, 4],
+                  plot_for='paper',
+                  errorBar=True,
+                  error_data=wav2lip_Origaudio_vs_av1_error)  # demo or paper
 plt.show()
 
 print('fraction Resemble Audio is better than Original Audio with Wav2Lip')

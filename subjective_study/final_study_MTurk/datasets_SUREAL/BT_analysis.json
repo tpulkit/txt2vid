@@ -1,0 +1,248 @@
+{
+    "Content1": [
+        {
+            "quality_scores": [
+                -0.14430696011919625,
+                -0.9377275756853264,
+                0.1256032287223759,
+                -0.6678173868437532,
+                -0.6150875120958574,
+                -0.9935029267990669,
+                0.12560322872237586,
+                -0.19703683486709306,
+                -0.03781442115203341,
+                -0.4060621734814751,
+                -0.5103242985298861,
+                -0.19703683486709317,
+                -1.1660511631881334,
+                -1.2256758330524016,
+                -0.8121243469629504,
+                0.0
+            ],
+            "quality_scores_std": null,
+            "dis_video_names": [
+                "AM_AV1_crf60_AAC_br10_ds2_us2_bitrateV_10627_bitrateA_10076.mp4",
+                "AM_AV1_crf60_AAC_br5_ds2_us2_bitrateV_10624_bitrateA_5110.mp4",
+                "AM_AV1_crf63_AAC_br10_ds1_us1_bitrateV_14224_bitrateA_10076.mp4",
+                "AM_AV1_crf63_AAC_br10_ds2_us2_bitrateV_8578_bitrateA_10076.mp4",
+                "AM_AV1_crf63_AAC_br5_ds1_us1_bitrateV_14156_bitrateA_5110.mp4",
+                "AM_AV1_crf63_AAC_br5_ds2_us2_bitrateV_8578_bitrateA_5110.mp4",
+                "AM_AVC_crf26_AAC_br10_ds2_us2_bitrateV_95784_bitrateA_10076.mp4",
+                "AM_AVC_crf26_AAC_br5_ds2_us2_bitrateV_95784_bitrateA_5110.mp4",
+                "AM_AVC_crf28_AAC_br10_ds2_us2_bitrateV_62602_bitrateA_10076.mp4",
+                "AM_AVC_crf28_AAC_br5_ds2_us2_bitrateV_62602_bitrateA_5110.mp4",
+                "AM_AVC_crf30_AAC_br10_ds2_us2_bitrateV_45309_bitrateA_10076.mp4",
+                "AM_AVC_crf30_AAC_br5_ds2_us2_bitrateV_45309_bitrateA_5110.mp4",
+                "AM_AVC_crf32_AAC_br10_ds4_us4_bitrateV_12456_bitrateA_10076.mp4",
+                "AM_AVC_crf32_AAC_br5_ds4_us4_bitrateV_12456_bitrateA_5110.mp4",
+                "AM_driving_video_AVC_crf20_original_audio_br10.mp4",
+                "AM_driving_video_AVC_crf20_resemble_audio.mp4"
+            ]
+        }
+    ],
+    "Content2": [
+        {
+            "quality_scores": [
+                0.7972936730636203,
+                0.5982239336285977,
+                1.7873286858509916,
+                0.3587529650908994,
+                1.1192396621283534,
+                0.3587529650908995,
+                2.2635554788309844,
+                1.7080620721526627,
+                1.959294252744012,
+                1.6325046957683345,
+                1.959294252744012,
+                1.423898790843346,
+                1.1192396621283534,
+                1.0629414870467782,
+                0.4346737580744307,
+                0.0
+            ],
+            "quality_scores_std": null,
+            "dis_video_names": [
+                "MS_AV1_crf60_AAC_br10_ds2_us2_bitrateV_10650_bitrateA_10041.mp4",
+                "MS_AV1_crf60_AAC_br5_ds2_us2_bitrateV_10650_bitrateA_5085.mp4",
+                "MS_AV1_crf63_AAC_br10_ds1_us1_bitrateV_15128_bitrateA_10041.mp4",
+                "MS_AV1_crf63_AAC_br10_ds2_us2_bitrateV_8628_bitrateA_10041.mp4",
+                "MS_AV1_crf63_AAC_br5_ds1_us1_bitrateV_15128_bitrateA_5085.mp4",
+                "MS_AV1_crf63_AAC_br5_ds2_us2_bitrateV_8628_bitrateA_5085.mp4",
+                "MS_AVC_crf26_AAC_br10_ds2_us2_bitrateV_87963_bitrateA_10041.mp4",
+                "MS_AVC_crf26_AAC_br5_ds2_us2_bitrateV_87963_bitrateA_5085.mp4",
+                "MS_AVC_crf28_AAC_br10_ds2_us2_bitrateV_64106_bitrateA_10041.mp4",
+                "MS_AVC_crf28_AAC_br5_ds2_us2_bitrateV_64106_bitrateA_5085.mp4",
+                "MS_AVC_crf30_AAC_br10_ds2_us2_bitrateV_46962_bitrateA_10041.mp4",
+                "MS_AVC_crf30_AAC_br5_ds2_us2_bitrateV_46962_bitrateA_5085.mp4",
+                "MS_AVC_crf32_AAC_br10_ds4_us4_bitrateV_11810_bitrateA_10041.mp4",
+                "MS_AVC_crf32_AAC_br5_ds4_us4_bitrateV_11810_bitrateA_5085.mp4",
+                "MS_driving_video_AVC_crf20_original_audio_br10.mp4",
+                "MS_driving_video_AVC_crf20_resemble_audio.mp4"
+            ]
+        }
+    ],
+    "Content3": [
+        {
+            "quality_scores": [
+                0.04523880540483743,
+                -0.26507357472739723,
+                0.09655834207289819,
+                -0.10899060105198537,
+                0.04523880540483797,
+                -0.31785038128066323,
+                0.3031991250496715,
+                0.09655834207289869,
+                0.3555511855370731,
+                0.1994682118616608,
+                -0.0060807312632227715,
+                0.04523880540483742,
+                -0.59106485352712,
+                -0.8895165075078423,
+                0.09047761080967551,
+                0.0
+            ],
+            "quality_scores_std": null,
+            "dis_video_names": [
+                "PP_AV1_crf60_AAC_br10_ds2_us2_bitrateV_14631_bitrateA_10077.mp4",
+                "PP_AV1_crf60_AAC_br5_ds2_us2_bitrateV_14631_bitrateA_5121.mp4",
+                "PP_AV1_crf63_AAC_br10_ds1_us1_bitrateV_20368_bitrateA_10077.mp4",
+                "PP_AV1_crf63_AAC_br10_ds2_us2_bitrateV_11083_bitrateA_10077.mp4",
+                "PP_AV1_crf63_AAC_br5_ds1_us1_bitrateV_20368_bitrateA_5121.mp4",
+                "PP_AV1_crf63_AAC_br5_ds2_us2_bitrateV_11083_bitrateA_5121.mp4",
+                "PP_AVC_crf26_AAC_br10_ds2_us2_bitrateV_115465_bitrateA_10077.mp4",
+                "PP_AVC_crf26_AAC_br5_ds2_us2_bitrateV_115465_bitrateA_5121.mp4",
+                "PP_AVC_crf28_AAC_br10_ds2_us2_bitrateV_83713_bitrateA_10077.mp4",
+                "PP_AVC_crf28_AAC_br5_ds2_us2_bitrateV_83713_bitrateA_5121.mp4",
+                "PP_AVC_crf30_AAC_br10_ds2_us2_bitrateV_62210_bitrateA_10077.mp4",
+                "PP_AVC_crf30_AAC_br5_ds2_us2_bitrateV_62210_bitrateA_5121.mp4",
+                "PP_AVC_crf32_AAC_br10_ds4_us4_bitrateV_16313_bitrateA_10077.mp4",
+                "PP_AVC_crf32_AAC_br5_ds4_us4_bitrateV_16313_bitrateA_5121.mp4",
+                "PP_driving_video_AVC_crf20_original_audio_br10.mp4",
+                "PP_driving_video_AVC_crf20_resemble_audio.mp4"
+            ]
+        }
+    ],
+    "Content4": [
+        {
+            "quality_scores": [
+                -0.47296614819936644,
+                -0.4158254446454288,
+                -0.13497364157155647,
+                -0.7690317445553666,
+                -0.5306514942587076,
+                -1.094535997392528,
+                0.20301886505625347,
+                0.08918349462318319,
+                0.14587816150231617,
+                -0.07915038077902158,
+                -0.02324119255337541,
+                -0.4158254446454288,
+                -1.0260749800273534,
+                -1.0260749800273534,
+                -0.26994728314311284,
+                0.0
+            ],
+            "quality_scores_std": null,
+            "dis_video_names": [
+                "PT_AV1_crf60_AAC_br10_ds2_us2_bitrateV_10230_bitrateA_10123.mp4",
+                "PT_AV1_crf60_AAC_br5_ds2_us2_bitrateV_10230_bitrateA_5145.mp4",
+                "PT_AV1_crf63_AAC_br10_ds1_us1_bitrateV_14659_bitrateA_10123.mp4",
+                "PT_AV1_crf63_AAC_br10_ds2_us2_bitrateV_8158_bitrateA_10123.mp4",
+                "PT_AV1_crf63_AAC_br5_ds1_us1_bitrateV_14659_bitrateA_5145.mp4",
+                "PT_AV1_crf63_AAC_br5_ds2_us2_bitrateV_8158_bitrateA_5145.mp4",
+                "PT_AVC_crf26_AAC_br10_ds2_us2_bitrateV_181485_bitrateA_10123.mp4",
+                "PT_AVC_crf26_AAC_br5_ds2_us2_bitrateV_181485_bitrateA_5145.mp4",
+                "PT_AVC_crf28_AAC_br10_ds2_us2_bitrateV_95864_bitrateA_10123.mp4",
+                "PT_AVC_crf28_AAC_br5_ds2_us2_bitrateV_95864_bitrateA_5145.mp4",
+                "PT_AVC_crf30_AAC_br10_ds2_us2_bitrateV_55835_bitrateA_10123.mp4",
+                "PT_AVC_crf30_AAC_br5_ds2_us2_bitrateV_55835_bitrateA_5145.mp4",
+                "PT_AVC_crf32_AAC_br10_ds4_us4_bitrateV_13082_bitrateA_10123.mp4",
+                "PT_AVC_crf32_AAC_br5_ds4_us4_bitrateV_13082_bitrateA_5145.mp4",
+                "PT_driving_video_AVC_crf20_original_audio_br10.mp4",
+                "PT_driving_video_AVC_crf20_resemble_audio.mp4"
+            ]
+        }
+    ],
+    "Content5": [
+        {
+            "quality_scores": [
+                0.8006949077946698,
+                0.154844661924318,
+                0.9404071505814475,
+                0.20798110532641217,
+                0.3167060045232573,
+                -0.05137933279424652,
+                0.9404071505814473,
+                0.26190529554568204,
+                1.014400473928679,
+                0.4873824686494389,
+                0.7343751902278658,
+                0.3724799579869318,
+                -0.20129336272161047,
+                -0.10170062087758008,
+                -0.8933900151531348,
+                0.0
+            ],
+            "quality_scores_std": null,
+            "dis_video_names": [
+                "SC_AV1_crf60_AAC_br10_ds2_us2_bitrateV_11333_bitrateA_10108.mp4",
+                "SC_AV1_crf60_AAC_br5_ds2_us2_bitrateV_11333_bitrateA_5133.mp4",
+                "SC_AV1_crf63_AAC_br10_ds1_us1_bitrateV_15507_bitrateA_10108.mp4",
+                "SC_AV1_crf63_AAC_br10_ds2_us2_bitrateV_8919_bitrateA_10108.mp4",
+                "SC_AV1_crf63_AAC_br5_ds1_us1_bitrateV_15496_bitrateA_5133.mp4",
+                "SC_AV1_crf63_AAC_br5_ds2_us2_bitrateV_8920_bitrateA_5133.mp4",
+                "SC_AVC_crf26_AAC_br10_ds2_us2_bitrateV_111033_bitrateA_10108.mp4",
+                "SC_AVC_crf26_AAC_br5_ds2_us2_bitrateV_111033_bitrateA_5133.mp4",
+                "SC_AVC_crf28_AAC_br10_ds2_us2_bitrateV_64553_bitrateA_10108.mp4",
+                "SC_AVC_crf28_AAC_br5_ds2_us2_bitrateV_64553_bitrateA_5133.mp4",
+                "SC_AVC_crf30_AAC_br10_ds2_us2_bitrateV_42294_bitrateA_10108.mp4",
+                "SC_AVC_crf30_AAC_br5_ds2_us2_bitrateV_42294_bitrateA_5133.mp4",
+                "SC_AVC_crf32_AAC_br10_ds4_us4_bitrateV_11556_bitrateA_10108.mp4",
+                "SC_AVC_crf32_AAC_br5_ds4_us4_bitrateV_11556_bitrateA_5133.mp4",
+                "SC_driving_video_AVC_crf20_original_audio_br10.mp4",
+                "SC_driving_video_AVC_crf20_resemble_audio.mp4"
+            ]
+        }
+    ],
+    "Content6": [
+        {
+            "quality_scores": [
+                0.018233767486365383,
+                -0.5005478124827409,
+                0.5107561758230078,
+                -0.4526106532362915,
+                0.018233767486364866,
+                -0.7470661296860708,
+                0.45882012051782395,
+                0.16115844624340084,
+                0.563574054875763,
+                -0.2634563852840704,
+                0.7283373058080496,
+                0.20946737303520768,
+                -0.26345638528407034,
+                -0.8501455420623475,
+                -0.3393893662393403,
+                0.0
+            ],
+            "quality_scores_std": null,
+            "dis_video_names": [
+                "YL_AV1_crf60_AAC_br10_ds2_us2_bitrateV_8054_bitrateA_10152.mp4",
+                "YL_AV1_crf60_AAC_br5_ds2_us2_bitrateV_8054_bitrateA_5294.mp4",
+                "YL_AV1_crf63_AAC_br10_ds1_us1_bitrateV_11413_bitrateA_10152.mp4",
+                "YL_AV1_crf63_AAC_br10_ds2_us2_bitrateV_6658_bitrateA_10152.mp4",
+                "YL_AV1_crf63_AAC_br5_ds1_us1_bitrateV_11413_bitrateA_5294.mp4",
+                "YL_AV1_crf63_AAC_br5_ds2_us2_bitrateV_6658_bitrateA_5294.mp4",
+                "YL_AVC_crf26_AAC_br10_ds2_us2_bitrateV_122218_bitrateA_10152.mp4",
+                "YL_AVC_crf26_AAC_br5_ds2_us2_bitrateV_122218_bitrateA_5294.mp4",
+                "YL_AVC_crf28_AAC_br10_ds2_us2_bitrateV_76922_bitrateA_10152.mp4",
+                "YL_AVC_crf28_AAC_br5_ds2_us2_bitrateV_76922_bitrateA_5294.mp4",
+                "YL_AVC_crf30_AAC_br10_ds2_us2_bitrateV_48072_bitrateA_10152.mp4",
+                "YL_AVC_crf30_AAC_br5_ds2_us2_bitrateV_48072_bitrateA_5294.mp4",
+                "YL_AVC_crf32_AAC_br10_ds4_us4_bitrateV_9116_bitrateA_10152.mp4",
+                "YL_AVC_crf32_AAC_br5_ds4_us4_bitrateV_9116_bitrateA_5294.mp4",
+                "YL_driving_video_AVC_crf20_original_audio_br10.mp4",
+                "YL_driving_video_AVC_crf20_resemble_audio.mp4"
+            ]
+        }
+    ]
+}
