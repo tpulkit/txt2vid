@@ -13,8 +13,13 @@ from google.cloud import texttospeech
 import subprocess
 import wave
 
+
+
 sys.path.insert(1, os.path.join(sys.path[0], "../resemble_tts/util"))
 from resemble_utils import generate_voice_fn_resemble
+
+from openvino.inference_engine import IECore
+from openvino.inference_engine import IENetwork
 
 
 def text_input_resemble_thread_handler(text_input_from, start_audio_input_thread,
@@ -352,7 +357,7 @@ def audio_thread_handler(fifo_filename_audio, audio_inqueue):
     fifo_audio_out.close()
 
 
-def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
+def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, model_xml, model_bin,
                       BYTE_WIDTH, NUM_AUDIO_SAMPLES_PER_STEP, audio_sr, mel_step_size,
                       wav2lip_batch_size, device,
                       face, resize_factor, rotate, crop,
@@ -388,8 +393,16 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
     # frames for each audio chunk.
     # NOTE: The value has been chosen for fps=25, and NUM_AUDIO_SAMPLES_PER_STEP 3200. For other values, please recalculate
     mel_idx_multiplier = 1
+    ie = IECore()
+    net = ie.read_network(model=model_xml, weights = model_bin)
+    exec_net = ie.load_network(network=net, device_name="CPU")
 
-    model = load_model(checkpoint_path, device)
+    input_layer0 = next(iter(net.input_info))
+    input_layer1 = next(iter(net.input_info))
+    output_layer = next(iter(net.outputs))
+    inputs = list(net.input_info.keys())
+    print(inputs[0], inputs[1])
+    #model = load_model(checkpoint_path, device)
     print("Model loaded")
 
     # Setup video streaming pipe:
@@ -399,6 +412,7 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
     audio_received = 0.0
     audio_data = audio_inqueue.get()
     while len(audio_data) == NUM_AUDIO_SAMPLES_PER_STEP * BYTE_WIDTH:
+        #print("Loop started at", time.time())
         # break when exactly desired length not received (so very last packet might be lost)
         audio_received += NUM_AUDIO_SAMPLES_PER_STEP / audio_sr
         curr_wav = librosa.util.buf_to_float(audio_data, n_bytes=BYTE_WIDTH)  # convert to float
@@ -429,9 +443,7 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
                 break
             mel_chunks.append(mel[:, start_idx: start_idx + mel_step_size])
             i += 1
-            
-           
-        print("frames per audio chunck: {}".format(len(mel_chunks)))
+        
         batch_size = wav2lip_batch_size
         gen = datagen(full_frames, face_det_results, mel_chunks, frames_done,
                       static, img_size, wav2lip_batch_size)
@@ -440,12 +452,12 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
 
             img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
             mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(device)
-
-            with torch.no_grad():
-                pred = model(mel_batch, img_batch)
-
-            pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
-
+            pred = exec_net.infer(inputs = {inputs[0]: mel_batch, inputs[1]: img_batch})
+            #pred = exec_net.infer(inputs = {(inputs[0], inputs[1]i): (mel_batch,img_batch)})
+            pred = pred[output_layer]
+            #with torch.no_grad():
+            #    pred = model(mel_batch, img_batch)
+            pred = pred.transpose(0, 2, 3, 1) * 255.
             for p, f, c in zip(pred, frames, coords):
                 y1, y2, x1, x2 = c
                 p = cv2.resize(p.astype(np.uint8), (x2 - x1, y2 - y1))
@@ -459,7 +471,7 @@ def txt2vid_inference(fifo_filename_video, audio_inqueue, fps, checkpoint_path,
                 # write to pipe
                 ffmpeg_stream.write_video_frame(fifo_video_out, out_frame_RGB)
 
-        print('Generated', frames_done, 'frames from', '{:.1f}'.format(audio_received), 's of received audio', 'at frame rate', fps , 'fps ')
+        # print('Generated', frames_done, 'frames from', '{:.1f}'.format(audio_received), 's of received audio', 'at frame rate', fps , 'fps ')
 
         audio_data = audio_inqueue.get()
 

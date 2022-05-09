@@ -48,7 +48,7 @@ import os
 import subprocess
 import zipfile
 import threading
-
+import time
 parser = argparse.ArgumentParser(description='Example streaming ffmpeg numpy processing')
 parser.add_argument('in_filename', help='Input filename')
 parser.add_argument('port', default=8080, help='Port')
@@ -111,6 +111,7 @@ def start_ffmpeg_process2(fifo_name_video, fifo_name_audio, width, height, fps, 
     input_audio = ffmpeg.input(fifo_name_audio, format='s16le', acodec='pcm_s16le', ac=1, ar='16k')
 
     if output_to == 'socket':
+        print("in socket")
         # (mp4 doesn't work because it requires random access not appropriate for streaming)
         video_format = 'avi'  # format supporting both video and audio.
 
@@ -125,6 +126,8 @@ def start_ffmpeg_process2(fifo_name_video, fifo_name_audio, width, height, fps, 
                 .compile()
         )
     elif output_to == 'file':
+        print("in file")
+        print("process2 starting time",time.time())
         video_format = 'mp4'
         if output_path == 'None':
             raise ValueError('Asked to write in file but path not provided.')
@@ -219,7 +222,7 @@ def audio_thread_handler(fifo_filename_audio, process1_audio, audio_bytes_per_vi
 
 def run(in_filename, process_frame, port):
     width, height = get_video_info(in_filename)
-    fps = 10  # video fps
+    fps = 5  # video fps
     process1 = start_ffmpeg_process1(in_filename, fps)
     process1_audio = start_ffmpeg_process1_audio(in_filename)
 
@@ -235,7 +238,7 @@ def run(in_filename, process_frame, port):
     os.mkfifo(fifo_filename_audio)
 
     process2 = start_ffmpeg_process2(fifo_filename_video, fifo_filename_audio, width, height, fps, port)
-    audio_bytes_per_video_frame = 1600 * 2  # 2 bytes, 640 audio frames (16000/25)
+    audio_bytes_per_video_frame = 1600 * 4  # 2 bytes, 640 audio frames (16000/25)
 
     # we run audio and video in separate threads otherwise the fifo opening blocks
 

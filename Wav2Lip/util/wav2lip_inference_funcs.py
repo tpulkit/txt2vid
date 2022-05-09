@@ -146,7 +146,8 @@ def load_model(path, device):
     model = Wav2Lip()
     print("Load checkpoint from: {}".format(path))
     checkpoint = _load(path, device)
-    s = checkpoint["state_dict"]
+    #s = checkpoint["state_dict"]
+    s = checkpoint
     new_s = {}
     for k, v in s.items():
         new_s[k.replace('module.', '')] = v
