@@ -1,0 +1,10 @@
+{
+  "genIconOpts": {
+    "baseIcon": "src/assets/icon.svg",
+    "genFavicons": true
+  },
+  "disabled": true,
+  "production": {
+    "disabled": false
+  }
+}

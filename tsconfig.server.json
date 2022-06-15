@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "module": "CommonJS",
+    "resolveJsonModule": true,
+    "strict": true,
+    "target": "ESNext",
+    "lib": ["ESNext"]
+  },
+  "include": ["server/**/*.ts", "server/**/*.d.ts"],
+  "exclude": []
+}
