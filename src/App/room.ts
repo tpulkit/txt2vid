@@ -12,11 +12,13 @@ interface SignalingConnectionMessages {
 }
 
 interface RoomP2PEvents {
+  speech: string;
 }
 
 interface RoomEvents {
   ready: void;
   vid: MediaStream;
+  speech: string;
   error: Error;
 }
 
@@ -36,6 +38,9 @@ export default class Room extends EventEmitter<RoomEvents> {
       this.conn = await P2P.init<RoomP2PEvents>(this.signal.sub(foundPeer!), remote);
       this.conn.on('message', (evt) => {
         switch (evt.type) {
+          case 'speech':
+            this.emit('speech', evt.msg);
+            break;
           case 'error':
             this.emit('error', new Error('Peer error: ' + evt.msg));
             break;
@@ -43,7 +48,7 @@ export default class Room extends EventEmitter<RoomEvents> {
       });
       this.conn.on('stream', stream => {
         this.emit('vid', stream);
-      })
+      });
       this.emit('ready', undefined);
     };
     this.signal.on('message', (evt) => {
@@ -83,6 +88,10 @@ export default class Room extends EventEmitter<RoomEvents> {
 
   sendVid(stream: MediaStream) {
     this.conn?.sendMediaStream(stream);
+  }
+
+  sendSpeech(speech: string) {
+    this.conn?.send('speech', speech);
   }
 
   disconnect() {

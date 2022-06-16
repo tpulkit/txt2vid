@@ -4,3 +4,4 @@ export * from './dialog';
 export * from './sub';
 export * from './face-tracker';
 export * from './vid-stream';
+export * from './resemble';

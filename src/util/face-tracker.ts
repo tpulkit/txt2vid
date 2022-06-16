@@ -42,8 +42,8 @@ export class FaceTracker {
     if (++this.memoryInd >= this.memory) this.memoryInd = 0;
     return faces.length ? {
       x: faces[0].x,
-      y: faces[0].y,
-      radius: faces[0].radius
+      y: faces[0].y - faces[0].radius * 0.1,
+      radius: faces[0].radius * 1.2
     } : null;
   }
   extract(face: Face, size?: number): ImageData {
@@ -53,5 +53,10 @@ export class FaceTracker {
       return this.ctx.getImageData(0, 0, size, size);
     }
     return this.ctx.getImageData(x, y, s, s);
+  }
+  plaster(face: Face, img: ImageData, ctx: CanvasRenderingContext2D) {
+    const x = face.x - face.radius, y = face.y - face.radius, s = face.radius * 2;
+    this.ctx.putImageData(img, 0, 0);
+    ctx.drawImage(this.cnv, 0, 0, img.width, img.height, x, y, s * 1.01, s * 1.01)
   }
 }

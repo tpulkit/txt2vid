@@ -1,6 +1,9 @@
 import express from 'express';
 import expressWS from 'express-ws';
 import WebSocket from 'ws';
+import fetch from 'node-fetch';
+import { randomBytes } from 'crypto';
+import 'dotenv/config';
 
 const { app } = expressWS(express(), undefined, {
   wsOptions: {
@@ -16,6 +19,48 @@ interface Room {
 }
 
 const rooms: Record<string, Room> = {};
+const nonceCB: Record<string, (url: string) => void> = {};
+
+app.use(express.json());
+app.get('/tts', async (req, res) => {
+  const { id, text } = req.query;
+  if (typeof id != 'string' || typeof text != 'string') {
+    return res.status(400).end();
+  }
+  const [projectID, voiceID] = id.split(':');
+  const nonce = randomBytes(8).toString('hex');
+  nonceCB[nonce] = url => {
+    res.redirect(url);
+  }
+  const response = await fetch(`https://app.resemble.ai/api/v2/projects/${projectID}/clips`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Token token=${process.env.RESEMBLE_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      body: text,
+      voice_uuid: voiceID,
+      is_public: false,
+      is_archived: false,
+      callback_uri: `${process.env.WEBSITE}/api/tts_callback?src=${nonce}`
+    })
+  });
+  const result = await response.json() as { success: boolean };
+  if (!result.success) {
+    return res.status(400).end();
+  }
+})
+
+app.post('/tts_callback', (req, res) => {
+  const { src } = req.query;
+  if (typeof src != 'string' || typeof req.body.url != 'string' || !nonceCB[src]) {
+    return res.status(403).end();
+  }
+  nonceCB[src](req.body.url);
+  delete nonceCB[src];
+  res.status(200).end();
+});
 
 app.ws('/room/:id', (_ws, req) => {
   const ws = Object.assign(_ws, { ip: req.ip });

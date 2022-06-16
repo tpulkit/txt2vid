@@ -4,13 +4,13 @@
 
 Setup:
 ```sh
-git clone https://github.com/101arrowz/send-it
-cd send-it
-git checkout real-txt2vid
+git clone https://github.com/tpulkit/txt2vid
+cd txt2vid
+git checkout arjun-browser
 git submodule update
 ```
 
-You should now have the real-txt2vid branch checked out in your local git repo, along with the Wav2Lip repo as a submodule. To generate the ONNX model file you only need to install PyTorch:
+You should now have the `arjun-browser` branch checked out in your local git repo, along with the Wav2Lip repo as a submodule. To generate the ONNX model file you only need to install PyTorch:
 ```sh
 pip3 install torch --extra-index-url https://download.pytorch.org/whl/cpu
 ```
@@ -57,16 +57,16 @@ npm install -g yarn
 
 This should add a `yarn` command to your `$PATH`, so you should be able to run `yarn -v`. You should see a version greater than `1.18.0`.
 
-If all that worked, you can install `send-it`'s dependencies with the following command:
+If all that worked, you can install `txt2vid`'s dependencies with the following command:
 ```sh
 yarn install
 ```
 
-It may take a few minutes to finish, but when it's done you should see a gigantic `node_modules` folder inside `send-it`.
+It may take a few minutes to finish, but when it's done you should see a gigantic `node_modules` folder inside `txt2vid`.
 
 ### Developing
 
-To start the development environment, run `yarn start` in the `send-it` directory. You should see the app building, and you should be able to go to `http://localhost:4200` in your browser to open the web app once you see a build success message.
+To start the development environment, run `yarn start` in the `txt2vid` directory. You should see the app building, and you should be able to go to `http://localhost:4200` in your browser to open the web app once you see a build success message.
 
 The web application's UI is a bit unintuitive at the moment, but you should get a prompt to allow camera and mic access when you open it.
 
@@ -83,3 +83,11 @@ src/App/model.ts
 ```
 
 This file contains the preprocessing and postprocessing logic for the Wav2Lip model, and exports a `genFrames` function that accepts spectrogram and video-frame input to generate a lipsynced video-frame output. I added many comments to this file to try to explain the code.
+
+Also, make a `.env` file in the top directory (i.e. alongside this README) and write:
+
+```sh
+RESEMBLE_API_KEY=<your token here>
+```
+
+Avoid deploying the site publicly as your API token will be exposed in cleartext if you do.
