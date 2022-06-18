@@ -84,11 +84,16 @@ export interface Detection {
 }
 
 export function toGrayscale(img: Image): Uint8Array | Uint8ClampedArray;
-export function toGrayscale<T extends ArrayLike<number> & Pick<Uint8Array, 'set'> = Uint8Array | Uint8ClampedArray>(
-  img: Image,
-  buffer: T
-): T;
-export function toGrayscale<T extends ArrayLike<number> & Pick<Uint8Array, 'set'> = Uint8Array | Uint8ClampedArray>(
+export function toGrayscale<
+  T extends ArrayLike<number> & Pick<Uint8Array, 'set'> =
+    | Uint8Array
+    | Uint8ClampedArray
+>(img: Image, buffer: T): T;
+export function toGrayscale<
+  T extends ArrayLike<number> & Pick<Uint8Array, 'set'> =
+    | Uint8Array
+    | Uint8ClampedArray
+>(
   { data, width, height }: Image,
   buffer?: T
 ): Uint8Array | Uint8ClampedArray | T {
@@ -167,10 +172,12 @@ export function clusterDetections(detections: Detection[], clusterIOU = 0.2) {
     i: number;
     c?: 1;
   };
-  const intDets = detections.map((v, i) => ({
-    ...v,
-    i
-  })).sort((a, b) => b.confidence - a.confidence);
+  const intDets = detections
+    .map((v, i) => ({
+      ...v,
+      i
+    }))
+    .sort((a, b) => b.confidence - a.confidence);
   const outDetections: ClusteredDetection[] = [];
   for (let i = 0; i < intDets.length; ++i) {
     const d = intDets[i];

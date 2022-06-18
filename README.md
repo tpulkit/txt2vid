@@ -89,5 +89,3 @@ Also, make a `.env` file in the top directory (i.e. alongside this README) and w
 ```sh
 RESEMBLE_API_KEY=<your token here>
 ```
-
-Avoid deploying the site publicly as your API token will be exposed in cleartext if you do.

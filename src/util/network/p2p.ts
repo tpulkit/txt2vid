@@ -19,11 +19,16 @@ export interface P2PInitRequest<E, M = E> extends Promise<RTCConnection<E, M>> {
 
 type CustomEvents = {
   stream: MediaStream;
-}
+};
 
-export type P2PCustomEvents<E> = NonConnectionEvents<E> & { [K in keyof CustomEvents]?: CustomEvents[K] };
+export type P2PCustomEvents<E> = NonConnectionEvents<E> &
+  { [K in keyof CustomEvents]?: CustomEvents[K] };
 
-export default class RTCConnection<E, M = E, L extends P2PCustomEvents<E> = {}> extends Sendable<E, M, L & CustomEvents> {
+export default class RTCConnection<
+  E,
+  M = E,
+  L extends P2PCustomEvents<E> = {}
+> extends Sendable<E, M, L & CustomEvents> {
   private static readonly CONFIG: RTCConfiguration = {
     iceServers: [
       {
@@ -40,13 +45,13 @@ export default class RTCConnection<E, M = E, L extends P2PCustomEvents<E> = {}> 
   ) {
     super(channel);
     const seenStreams: Set<MediaStream> = new Set();
-    baseConnection.addEventListener('track', evt => {
+    baseConnection.addEventListener('track', (evt) => {
       const stream = evt.streams[0];
       if (!seenStreams.has(stream)) {
         seenStreams.add(stream);
         this.emit('stream', stream);
       }
-    })
+    });
     channel.bufferedAmountLowThreshold = 262144;
     baseConnection.addEventListener('datachannel', ({ channel }) => {
       this['children'][channel.label] = new RTCConnection.ChildRTC(
@@ -82,8 +87,13 @@ export default class RTCConnection<E, M = E, L extends P2PCustomEvents<E> = {}> 
             }
             break;
           case 'sdp':
-            ignoreCurrentOffer = evt.msg.type == 'offer' && !remote &&
-              (makingOffer || conn.signalingState != 'stable' && (conn.signalingState != 'have-local-offer' || !settingRemoteAnswer));
+            ignoreCurrentOffer =
+              evt.msg.type == 'offer' &&
+              !remote &&
+              (makingOffer ||
+                (conn.signalingState != 'stable' &&
+                  (conn.signalingState != 'have-local-offer' ||
+                    !settingRemoteAnswer)));
             if (ignoreCurrentOffer) return;
             settingRemoteAnswer = evt.msg.type == 'answer';
             await conn.setRemoteDescription(evt.msg);

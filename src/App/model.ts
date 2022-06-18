@@ -17,7 +17,7 @@ import modelURL from 'url:../assets/wav2lip.onnx';
 // as ConvTranspose. I am hoping to contribute a GPU implementation of ConvTranspose to wonnx, since wonnx
 // is open source. That would enable use to switch to a GPU-accelerated model runner, and therefore get
 // realtime performance on mobile.
-// 
+//
 // onnxruntime-web: https://github.com/microsoft/onnxruntime/tree/master/js/web
 // wonnx: https://github.com/webonnx/wonnx
 import baseWASM from 'url:onnxruntime-web/dist/ort-wasm.wasm';
@@ -39,7 +39,9 @@ env.wasm.wasmPaths = {
 
 // This incrementally downloads the model (which is over 100MB) to the browser in the background.
 // Only when the model is ready will we be able to use this variable to run the model on our inputs.
-const modelProm = InferenceSession.create(modelURL, { executionProviders: ['wasm'] });
+const modelProm = InferenceSession.create(modelURL, {
+  executionProviders: ['wasm']
+});
 
 // The rest of this file is preprocessing logic that was used in the original Wav2Lip repo and therefore
 // had to be reimplemented in JavaScript. I couldn't use any pre-existing libraries for most of this
@@ -69,13 +71,13 @@ const melToHz = (mel: number) => (Math.pow(10, mel / 2595) - 1) * 700;
 // Similar to numpy.linspace
 // Link: https://numpy.org/doc/stable/reference/generated/numpy.linspace.html
 const linspace = (start: number, end: number, n: number) => {
-  let diff = (end - start) / (n - 1);
-  let out = new Float32Array(n);
+  const diff = (end - start) / (n - 1);
+  const out = new Float32Array(n);
   for (let i = 0; i < n; ++i) {
     out[i] = start + diff * i;
   }
   return out;
-}
+};
 
 // The Mel basis matrix generation code. Probably not worth trying to understand unless
 // you've studied DSP in great depth.
@@ -84,7 +86,9 @@ const melBasis = (() => {
   // fft frequency bins are linear from 0 to nyquist (sr/2)
   const fftFreqs = linspace(0, SAMPLE_RATE / 2, freqBins);
   // set mel scale from min to max freq
-  const melFreqs = linspace(hzToMel(LO_FREQ), hzToMel(HI_FREQ), N_MELS + 2).map(melToHz);
+  const melFreqs = linspace(hzToMel(LO_FREQ), hzToMel(HI_FREQ), N_MELS + 2).map(
+    melToHz
+  );
   for (let i = 0; i < N_MELS; ++i) {
     const prev = melFreqs[i];
     const cur = melFreqs[i + 1];
@@ -104,10 +108,9 @@ const melBasis = (() => {
   return weights;
 })();
 
-
 // Converts a full spectrum to Mel scale by multiplying it by the Mel basis matrix
 const toMelScale = (spectrum: Float32Array) => {
-  const amp = spectrum.map(db => Math.pow(10, (db + 80) * 0.05));
+  const amp = spectrum.map((db) => Math.pow(10, (db + 80) * 0.05));
   const melScale = new Float32Array(N_MELS);
   for (let i = 0; i < N_MELS; ++i) {
     let scaledAmp = 0.0;
@@ -116,12 +119,12 @@ const toMelScale = (spectrum: Float32Array) => {
     }
     const db = Math.max(MIN_DB, 20 * Math.log10(scaledAmp)) + REF_DB;
     // scaled from -1 to 1
-    const scaled = (1 - 2 * Math.min(Math.max(db / MIN_DB, 0), 1))
+    const scaled = 1 - 2 * Math.min(Math.max(db / MIN_DB, 0), 1);
     melScale[i] = scaled * MAX_ABS;
   }
   // console.log(melScale);
   return melScale;
-}
+};
 
 // Wrapper for toMelScale that converts an entire spectrogram
 const toInputMelSpectrogram = (spectrogram: Float32Array[]) => {
@@ -133,7 +136,7 @@ const toInputMelSpectrogram = (spectrogram: Float32Array[]) => {
     }
   }
   return new Tensor(melData, [1, 80, 16]);
-}
+};
 
 // Prepares the visual input (i.e. the video frame) for use in Wav2Lip. For some reason,
 // Wav2Lip uses BGR instead of RGB and also uses 6 color channels instead of three. The
@@ -163,12 +166,13 @@ const toInputFrame = (img: ImageData) => {
     }
   }
   return new Tensor(imgData, [6, IMG_SIZE, IMG_SIZE]);
-}
+};
 
 const toOutputImgs = (result: Tensor, num: number) => {
-  if (result.type != 'float32') throw new TypeError(`unexpected tensor type ${result.type}`);
+  if (result.type != 'float32')
+    throw new TypeError(`unexpected tensor type ${result.type}`);
   const data = result.data as Float32Array;
-  let out: ImageData[] = [];
+  const out: ImageData[] = [];
   const batchSize = totalPx * 3;
   for (let i = 0; i < num; ++i) {
     const ret = new ImageData(IMG_SIZE, IMG_SIZE);
@@ -184,7 +188,7 @@ const toOutputImgs = (result: Tensor, num: number) => {
     out.push(ret);
   }
   return out;
-}
+};
 
 // Batches multiple tensors together, since batching inputs in theory improves performance. However
 // the lack of hardware acceleration in the WASM executor means this is mostly useless for now.
@@ -195,13 +199,24 @@ const batch = (tensors: Tensor[]) => {
     return base.reshape([1, ...base.dims]);
   }
   const length = tensors.reduce((l, v) => {
-    if (v.type != base.type || v.dims.length != base.dims.length || v.dims.some((v, i) => base.dims[i] != v)) {
-      throw new TypeError(`expected${base.type} tensor(${base.dims.join(', ')}), found ${v.type} tensor(${v.dims.join(', ')})`);
+    if (
+      v.type != base.type ||
+      v.dims.length != base.dims.length ||
+      v.dims.some((v, i) => base.dims[i] != v)
+    ) {
+      throw new TypeError(
+        `expected${base.type} tensor(${base.dims.join(', ')}), found ${
+          v.type
+        } tensor(${v.dims.join(', ')})`
+      );
     }
     return l + v.data.length;
   }, 0);
   if (base.type == 'string') {
-    return new Tensor(tensors.flatMap(t => t.data as string[]), [tensors.length, ...base.dims]);
+    return new Tensor(
+      tensors.flatMap((t) => t.data as string[]),
+      [tensors.length, ...base.dims]
+    );
   }
   const buf = new (base.data.constructor as Uint8ArrayConstructor)(length);
   let offset = 0;
@@ -210,9 +225,9 @@ const batch = (tensors: Tensor[]) => {
     offset += tensor.data.length;
   }
   return new Tensor(buf, [tensors.length, ...base.dims]);
-}
+};
 
-export type FrameInput = { spectrogram: Float32Array[]; img: ImageData; };
+export type FrameInput = { spectrogram: Float32Array[]; img: ImageData };
 
 // This is the exported function that takes in a spectrogram and a video frame to generate a
 // lipsynced video frame. It is asynchronous to allow the model to finish downloading before
@@ -225,17 +240,22 @@ export type FrameInput = { spectrogram: Float32Array[]; img: ImageData; };
 // The expected output is a single video frame as an ImageData object that can be rendered to a canvas.
 export async function genFrames(input: FrameInput[]) {
   if (
-    input.some(({ img, spectrogram }) =>
-      spectrogram.length != SPECTROGRAM_FRAMES ||
-      spectrogram.some(v => v.length != freqBins) ||
-      img.width != IMG_SIZE ||
-      img.height != IMG_SIZE
+    input.some(
+      ({ img, spectrogram }) =>
+        spectrogram.length != SPECTROGRAM_FRAMES ||
+        spectrogram.some((v) => v.length != freqBins) ||
+        img.width != IMG_SIZE ||
+        img.height != IMG_SIZE
     )
   ) {
-    throw new TypeError(`need ${SPECTROGRAM_FRAMES} spectra and a ${IMG_SIZE}x${IMG_SIZE} image per input to predict`);
+    throw new TypeError(
+      `need ${SPECTROGRAM_FRAMES} spectra and a ${IMG_SIZE}x${IMG_SIZE} image per input to predict`
+    );
   }
-  let ts = performance.now();  
-  const melBatch = batch(input.map(({ spectrogram }) => toInputMelSpectrogram(spectrogram)));
+  const ts = performance.now();
+  const melBatch = batch(
+    input.map(({ spectrogram }) => toInputMelSpectrogram(spectrogram))
+  );
   const imgBatch = batch(input.map(({ img }) => toInputFrame(img)));
   console.log(performance.now() - ts);
   const model = await modelProm;
@@ -245,4 +265,3 @@ export async function genFrames(input: FrameInput[]) {
   });
   return toOutputImgs(result.gen, input.length);
 }
-

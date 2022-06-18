@@ -18,13 +18,14 @@ export interface ConnectionEvents<T> {
   disconnect: void;
 }
 
-export type NonConnectionEvents<E> = {
-  [K: string | symbol]: unknown;
-} & { [K in keyof ConnectionEvents<E>]?: ConnectionEvents<E>[K] };
+export type NonConnectionEvents<E> = Record<string | symbol, unknown> &
+  { [K in keyof ConnectionEvents<E>]?: ConnectionEvents<E>[K] };
 
-export default abstract class Connection<E, M = E, L extends NonConnectionEvents<E> = {}> extends EventEmitter<
-  ConnectionEvents<E> & L
-> {
+export default abstract class Connection<
+  E,
+  M = E,
+  L extends NonConnectionEvents<E> = {}
+> extends EventEmitter<ConnectionEvents<E> & L> {
   abstract send<K extends keyof M>(type: K, msg: M[K]): void;
   abstract sendRaw(msg: ReadableStream<Uint8Array>): Promise<void>;
   abstract disconnect(): void;

@@ -5,12 +5,18 @@ export interface RawSendable {
   addEventListener: ((evt: 'open' | 'close', handler: () => unknown) => void) &
     ((evt: 'error', handler: (evt: ErrorEvent) => unknown) => void) &
     ((evt: 'message', handler: (evt: MessageEvent) => unknown) => void);
-  send: ((data: ArrayBuffer) => void) & ((data: string) => void) & ((data: ArrayBufferView) => void);
+  send: ((data: ArrayBuffer) => void) &
+    ((data: string) => void) &
+    ((data: ArrayBufferView) => void);
   close: () => void;
   binaryType: string;
 }
 
-export default class Sendable<E, M = E, L extends NonConnectionEvents<E> = {}> extends Connection<E, M, L> {
+export default class Sendable<
+  E,
+  M = E,
+  L extends NonConnectionEvents<E> = {}
+> extends Connection<E, M, L> {
   private controllers: ReadableStreamDefaultController<Uint8Array>[] = [];
   private controllerID = 0;
   private children: Record<string, Connection<unknown>> = {};
@@ -33,7 +39,7 @@ export default class Sendable<E, M = E, L extends NonConnectionEvents<E> = {}> e
     connection.addEventListener('message', (evt) => {
       const dat = evt.data as ArrayBuffer | string;
       if (dat instanceof ArrayBuffer) {
-        let head = new Uint8Array(dat, 0, 258);
+        const head = new Uint8Array(dat, 0, 258);
         const controllerID = head[0];
         const pfxLen = head[1];
         const datStart = 2 + pfxLen;

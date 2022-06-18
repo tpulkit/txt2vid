@@ -1,8 +1,4 @@
-import {
-  S2C,
-  P2P,
-  Sendable
-} from '../util/network';
+import { S2C, P2P, Sendable } from '../util/network';
 import { EventEmitter, mediaStreamToRS, rsToMediaSource } from '../util';
 
 interface SignalingConnectionMessages {
@@ -13,17 +9,20 @@ interface SignalingConnectionMessages {
 
 interface RoomP2PEvents {
   speech: string;
+  id: string;
 }
 
 interface RoomEvents {
   ready: void;
   vid: MediaStream;
   speech: string;
+  id: string;
   error: Error;
 }
 
 export default class Room extends EventEmitter<RoomEvents> {
   name?: string;
+  remote?: boolean;
   private conn: P2P<RoomP2PEvents> | null;
   private signal: Sendable<SignalingConnectionMessages, unknown>;
   constructor(id: string, name: string, pw?: string) {
@@ -34,19 +33,26 @@ export default class Room extends EventEmitter<RoomEvents> {
     this.conn = null;
     let foundPeer: string | null = null;
     const peerConnect = async (remote: boolean) => {
+      this.remote = remote;
       console.log('connecting to peer', foundPeer);
-      this.conn = await P2P.init<RoomP2PEvents>(this.signal.sub(foundPeer!), remote);
+      this.conn = await P2P.init<RoomP2PEvents>(
+        this.signal.sub(foundPeer!),
+        remote
+      );
       this.conn.on('message', (evt) => {
         switch (evt.type) {
           case 'speech':
             this.emit('speech', evt.msg);
+            break;
+          case 'id':
+            this.emit('id', evt.msg);
             break;
           case 'error':
             this.emit('error', new Error('Peer error: ' + evt.msg));
             break;
         }
       });
-      this.conn.on('stream', stream => {
+      this.conn.on('stream', (stream) => {
         this.emit('vid', stream);
       });
       this.emit('ready', undefined);
@@ -84,6 +90,10 @@ export default class Room extends EventEmitter<RoomEvents> {
           break;
       }
     });
+  }
+
+  sendID(id: string) {
+    this.conn?.send('id', id);
   }
 
   sendVid(stream: MediaStream) {
