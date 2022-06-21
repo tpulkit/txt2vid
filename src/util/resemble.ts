@@ -4,7 +4,7 @@ export const makeTTS = (text: string, id: string) => {
   );
   aud.crossOrigin = 'anonymous';
   return new Promise<HTMLAudioElement>((resolve, reject) => {
-    aud.addEventListener('load', () => resolve(aud));
+    aud.addEventListener('canplay', () => resolve(aud));
     aud.addEventListener('error', (evt) => reject(evt.error));
   });
 };

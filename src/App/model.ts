@@ -1,7 +1,7 @@
 // This file has many comments to clarify how the ONNX model is actually run.
 
 // This import creates a modelURL variable that contains a URL pointing to the converted ONNX model file
-import modelURL from 'url:../assets/wav2lip.onnx';
+import modelURL from 'url:../assets/wav2lip_gan.onnx';
 
 // These imports create variables that reference URLs to the WebAssembly runtimes necessary to efficiently
 // run the model. WebAssembly is an instruction set like x86 or ARM, but with instructions that can be
@@ -54,7 +54,7 @@ const LO_FREQ = 55;
 const HI_FREQ = 7600;
 const N_MELS = 80;
 const MIN_DB = -100;
-const REF_DB = -20;
+const REF_DB = 20;
 const MAX_ABS = 4;
 export const SPECTROGRAM_FRAMES = 16;
 export const IMG_SIZE = 96;
@@ -65,8 +65,20 @@ const freqBins = FFT_SIZE / 2;
 const totalPx = IMG_SIZE * IMG_SIZE;
 
 // Conversion functions between Hz scale and Mel scale (which better aligns with human hearing)
-const hzToMel = (hz: number) => 2595 * Math.log10(1 + hz / 700);
-const melToHz = (mel: number) => (Math.pow(10, mel / 2595) - 1) * 700;
+const hzToMel = (hz: number) => {
+  if (hz >= 1000) {
+    return 15 + Math.log(hz / 1000) / 0.06875;
+  } else {
+    return hz * 3 / 200;
+  }
+};
+const melToHz = (mel: number) => {
+  if (mel >= 15) {
+    return Math.exp((mel - 15) * 0.06875) * 1000;
+  } else {
+    return mel * 200 / 3;
+  }
+};
 
 // Similar to numpy.linspace
 // Link: https://numpy.org/doc/stable/reference/generated/numpy.linspace.html
@@ -110,14 +122,14 @@ const melBasis = (() => {
 
 // Converts a full spectrum to Mel scale by multiplying it by the Mel basis matrix
 const toMelScale = (spectrum: Float32Array) => {
-  const amp = spectrum.map((db) => Math.pow(10, (db + 80) * 0.05));
+  const amp = spectrum.map((db) => Math.pow(10, (db + 70) * 0.05));
   const melScale = new Float32Array(N_MELS);
   for (let i = 0; i < N_MELS; ++i) {
     let scaledAmp = 0.0;
     for (let j = 0; j < freqBins; ++j) {
       scaledAmp += amp[j] * melBasis[i * freqBins + j];
     }
-    const db = Math.max(MIN_DB, 20 * Math.log10(scaledAmp)) + REF_DB;
+    const db = Math.max(MIN_DB, 20 * Math.log10(scaledAmp)) - REF_DB;
     // scaled from -1 to 1
     const scaled = 1 - 2 * Math.min(Math.max(db / MIN_DB, 0), 1);
     melScale[i] = scaled * MAX_ABS;

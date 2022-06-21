@@ -1,4 +1,4 @@
-import {
+import React, {
   FC,
   useEffect,
   useLayoutEffect,
@@ -12,7 +12,7 @@ import {
   TextField,
   Checkbox,
   Button,
-  DialogQueue
+  SimpleDialog
 } from 'rmwc';
 import '@rmwc/textfield/styles';
 import '@rmwc/checkbox/styles';
@@ -20,7 +20,7 @@ import '@rmwc/button/styles';
 import '@rmwc/dialog/styles';
 import { css } from '@emotion/react';
 import { createWriteStream } from 'streamsaver';
-import { theme, confirm, dialogs, FaceTracker, makeTTS } from '../util';
+import { theme, prompt, dialogs, FaceTracker, makeTTS } from '../util';
 import Room from './room';
 import {
   FFT_SIZE,
@@ -38,7 +38,17 @@ console.log(asr);
 asr.continuous = true;
 asr.interimResults = true;
 
-const ID = 'cc3ddc80:91c6bde6'; // TODO: prompt for this and cache in localstorage
+let ID = localStorage.getItem('voice_id');
+if (!ID) {
+  prompt({
+    // title: 'Enter your Resemble ID',
+    // body: <div><span style={{ fontWeight: 'bold' }}>Format:</span> project_id:voice_id</div>,
+    // acceptLabel: 'Submit'
+  }).then(res => {
+    console.log(JSON.stringify(res));
+    ID
+  })
+}
 
 const un = Math.random().toString(36).slice(2);
 const App: FC = () => {
@@ -102,16 +112,20 @@ const App: FC = () => {
       const src = actx.createMediaElementSource(tts);
       const delay = actx.createDelay();
       // delayTime = average time for model to process
-      delay.delayTime.setValueAtTime(0.1, 0);
+      // 100ms to make the spectrograms centered around frame
+      // + 100ms for model time
+      delay.delayTime.setValueAtTime(0.2, 0);
       src.connect(delay);
       delay.connect(actx.destination);
       const reemphasis = actx.createIIRFilter([1, -0.97], [1]);
       const analyser = actx.createAnalyser();
       analyser.fftSize = FFT_SIZE;
+      analyser.smoothingTimeConstant = 0.2;
       src.connect(reemphasis);
       reemphasis.connect(analyser);
 
       tts.play();
+      console.log(tts);
       if (!queuedTTS.current) queuedTTS.current = [];
       let bufs: Float32Array[] = [];
       const ctx = peerRef.current!.getContext('2d')!;
@@ -147,10 +161,11 @@ const App: FC = () => {
             console.log(performance.now() - ts, result);
             faceTracker!.plaster(face!, result[0], ctx);
           }
-          bufs = bufs.slice(8);
+          bufs = bufs.slice(3);
         }
       }, 200 / SPECTROGRAM_FRAMES);
       const onDone = async () => {
+        console.log('finished tts');
         clearInterval(interval);
         const next = queuedTTS.current!.shift();
         if (next) setTTS(await next);
@@ -160,7 +175,7 @@ const App: FC = () => {
       tts.addEventListener('error', onDone);
       return () => clearInterval(interval);
     }
-  }, [faceTracker, tts]);
+  }, [faceTracker, tts, setTTS]);
   useLayoutEffect(() => {
     if (room) {
       let stripFront = '';
@@ -204,7 +219,7 @@ const App: FC = () => {
       };
       asr.addEventListener('end', stopHandler);
       const rcb = room.on('ready', () => {
-        room.sendID(ID);
+        room.sendID(ID!);
         room.sendVid(stream!);
       });
       const cb = room.on('vid', async (ms) => {
@@ -217,6 +232,7 @@ const App: FC = () => {
             mimeType: 'video/webm;codecs=vp8,opus'
           });
           mr.addEventListener('dataavailable', (evt) => {
+            if (peerDriverRef.current!.srcObject) peerDriverRef.current!.srcObject = null;
             if (peerDriverRef.current!.src) {
               return; // for debugging only - in production we should always get the latest driver
               URL.revokeObjectURL(peerDriverRef.current!.src);
@@ -257,7 +273,22 @@ const App: FC = () => {
   return (
     <ThemeProvider options={theme}>
       <RMWCProvider>
-        <DialogQueue dialogs={dialogs} />
+        <SimpleDialog
+          title="Enter your Resemble ID"
+          acceptLabel="Submit"
+          cancelLabel={null}
+          body={<div>
+            <div><span style={{ fontWeight: 'bold' }}>Format:</span> project_id:voice_id</div>
+            <TextField onChange={(evt: React.FormEvent<HTMLInputElement>) => {
+              localStorage.setItem('voice_id', evt.currentTarget.value);
+            }} />
+          </div>}
+          preventOutsideDismiss
+          open={!ID}
+          onClose={evt => {
+            ID = localStorage.getItem('voice_id');
+          }}
+        />
         <TextField
           placeholder="Room ID"
           onKeyDown={(ev) => {
@@ -268,11 +299,11 @@ const App: FC = () => {
           }}
         />
         <TextField
-          placeholder="Manual TTS (Arjun)"
+          placeholder="Manual TTS (your voice)"
           onKeyDown={async (ev) => {
             if (ev.key == 'Enter') {
               setTTS(
-                await makeTTS(ev.currentTarget.value, 'cc3ddc80:91c6bde6')
+                await makeTTS(ev.currentTarget.value, ID!)
               );
               ev.currentTarget.value = '';
             }

@@ -20,6 +20,7 @@ interface Room {
 
 const rooms: Record<string, Room> = {};
 const nonceCB: Record<string, (url: string) => void> = {};
+const cache: Record<string, string> = {};
 
 app.use(express.json());
 app.get('/tts', async (req, res) => {
@@ -27,10 +28,12 @@ app.get('/tts', async (req, res) => {
   if (typeof id != 'string' || typeof text != 'string') {
     return res.status(400).end();
   }
+  const cacheID = text.toLowerCase().replace(/'"/g, '') + ':' + id;
+  if (cache[cacheID]) return res.redirect(cache[cacheID]);
   const [projectID, voiceID] = id.split(':');
   const nonce = randomBytes(8).toString('hex');
   nonceCB[nonce] = url => {
-    res.redirect(url);
+    res.redirect(cache[cacheID] = url);
   }
   const response = await fetch(`https://app.resemble.ai/api/v2/projects/${projectID}/clips`, {
     method: 'POST',
