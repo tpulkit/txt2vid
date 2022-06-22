@@ -1,5 +1,4 @@
 // This file has many comments to clarify how the ONNX model is actually run.
-
 // This import creates a modelURL variable that contains a URL pointing to the converted ONNX model file
 import modelURL from 'url:../assets/wav2lip_gan.onnx';
 
@@ -37,9 +36,11 @@ env.wasm.wasmPaths = {
   'ort-wasm-simd-threaded.wasm': simdThreadWASM
 };
 
+env.wasm.proxy
+
 // This incrementally downloads the model (which is over 100MB) to the browser in the background.
 // Only when the model is ready will we be able to use this variable to run the model on our inputs.
-const modelProm = InferenceSession.create(modelURL, {
+let modelProm = InferenceSession.create(modelURL, {
   executionProviders: ['wasm']
 });
 
@@ -58,8 +59,8 @@ const REF_DB = 20;
 const MAX_ABS = 4;
 export const SPECTROGRAM_FRAMES = 16;
 export const IMG_SIZE = 96;
-export const FFT_SIZE = 2048;
-export const SAMPLE_RATE = 48000;
+export const FFT_SIZE = 1024;
+export const SAMPLE_RATE = 16000;
 
 const freqBins = FFT_SIZE / 2;
 const totalPx = IMG_SIZE * IMG_SIZE;
@@ -118,11 +119,11 @@ const melBasis = (() => {
     }
   }
   return weights;
-})();
+})();  
 
 // Converts a full spectrum to Mel scale by multiplying it by the Mel basis matrix
 const toMelScale = (spectrum: Float32Array) => {
-  const amp = spectrum.map((db) => Math.pow(10, (db + 70) * 0.05));
+  const amp = spectrum.map((db) => Math.pow(10, (db + 60) * 0.05));
   const melScale = new Float32Array(N_MELS);
   for (let i = 0; i < N_MELS; ++i) {
     let scaledAmp = 0.0;

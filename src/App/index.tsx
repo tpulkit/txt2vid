@@ -20,16 +20,16 @@ import '@rmwc/button/styles';
 import '@rmwc/dialog/styles';
 import { css } from '@emotion/react';
 import { createWriteStream } from 'streamsaver';
-import { theme, prompt, dialogs, FaceTracker, makeTTS } from '../util';
+import { theme, prompt, dialogs, FaceTracker, makeTTS, Face } from '../util';
 import Room from './room';
 import {
   FFT_SIZE,
   FrameInput,
-  genFrames,
   IMG_SIZE,
   SAMPLE_RATE,
   SPECTROGRAM_FRAMES
 } from './model';
+import { genFrames } from './async-model';
 
 const ASR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -48,6 +48,16 @@ if (!ID) {
     console.log(JSON.stringify(res));
     ID
   })
+}
+
+declare global {
+  interface HTMLAudioElement {
+    captureStream(): MediaStream;
+  }
+  
+  interface HTMLCanvasElement {
+    captureStream(): MediaStream;
+  }
 }
 
 const un = Math.random().toString(36).slice(2);
@@ -108,15 +118,8 @@ const App: FC = () => {
   }, [roomID]);
   useEffect(() => {
     if (tts != null) {
-      const actx = new AudioContext();
+      const actx = new AudioContext({ sampleRate: SAMPLE_RATE });
       const src = actx.createMediaElementSource(tts);
-      const delay = actx.createDelay();
-      // delayTime = average time for model to process
-      // 100ms to make the spectrograms centered around frame
-      // + 100ms for model time
-      delay.delayTime.setValueAtTime(0.2, 0);
-      src.connect(delay);
-      delay.connect(actx.destination);
       const reemphasis = actx.createIIRFilter([1, -0.97], [1]);
       const analyser = actx.createAnalyser();
       analyser.fftSize = FFT_SIZE;
@@ -127,52 +130,90 @@ const App: FC = () => {
       tts.play();
       console.log(tts);
       if (!queuedTTS.current) queuedTTS.current = [];
+      const tmpCnv = document.createElement('canvas');
+      const tmpCtx = tmpCnv.getContext('2d')!;
       let bufs: Float32Array[] = [];
+      const promises: Promise<{gen: ImageData; imd: ImageData; face: Face; timestamp: number;}>[] = [];
       const ctx = peerRef.current!.getContext('2d')!;
+      const TARGET_FPS = 15;
+      const specPerFrame = (1 / TARGET_FPS) / (0.2 / SPECTROGRAM_FRAMES);
       const interval = setInterval(async () => {
         const face = faceTracker?.find();
-        const img = face ? faceTracker!.extract(face, IMG_SIZE) : null;
         const buf = new Float32Array(analyser.frequencyBinCount);
         analyser.getFloatFrequencyData(buf);
         bufs.push(buf);
-        const batchSize = 1;
-        if (bufs.length == SPECTROGRAM_FRAMES * batchSize) {
-          // console.log(bufs);
-          if (img) {
-            const { width, height } = (_tmpPeerVidRef.current!
-              .srcObject as MediaStream)
-              .getVideoTracks()[0]
-              .getSettings();
-            peerRef.current!.width = width!;
-            peerRef.current!.height = height!;
-            ctx.drawImage(peerDriverRef.current!, 0, 0);
-            const ts = performance.now();
-            const batch: FrameInput[] = [];
-            for (let i = 0; i < batchSize; ++i) {
-              batch.push({
-                img,
-                spectrogram: bufs.slice(
-                  i * SPECTROGRAM_FRAMES,
-                  (i + 1) * SPECTROGRAM_FRAMES
-                )
-              });
-            }
-            const result = await genFrames(batch);
-            console.log(performance.now() - ts, result);
-            faceTracker!.plaster(face!, result[0], ctx);
+        if (bufs.length == SPECTROGRAM_FRAMES) {
+          const timestamp = performance.now();
+          if (face) {
+            const { videoWidth, videoHeight } = peerDriverRef.current!;
+            tmpCnv.width = peerRef.current!.width = videoWidth;
+            tmpCnv.height = peerRef.current!.height = videoHeight;
+            tmpCtx.drawImage(peerDriverRef.current!, 0, 0);
+            const imd = tmpCtx.getImageData(0, 0, videoWidth, videoHeight);
+            promises.push(genFrames([{ img: faceTracker!.extract(face, IMG_SIZE, tmpCnv), spectrogram: bufs.slice() }]).then(result => 
+              ({ gen: result[0], imd, face: face!, timestamp })
+            ));
           }
-          bufs = bufs.slice(3);
+          bufs = bufs.slice(Math.ceil(specPerFrame));
         }
       }, 200 / SPECTROGRAM_FRAMES);
-      const onDone = async () => {
-        console.log('finished tts');
-        clearInterval(interval);
-        const next = queuedTTS.current!.shift();
-        if (next) setTTS(await next);
-        else queuedTTS.current = null;
+      const onDone = (evt: Event) => {
+        setTimeout(async () => {
+          clearInterval(interval);
+          if (!(evt as ErrorEvent).error) {
+            await Promise.all(promises).then(frames => {
+              frames = frames.sort((a, b) => a.timestamp - b.timestamp);
+              const audStream = tts.captureStream();
+              const cnvStream = peerRef.current!.captureStream();
+              cnvStream.addTrack(audStream.getAudioTracks()[0]);
+              const mr = new MediaRecorder(cnvStream, { mimeType: 'video/webm' });
+              const chunks: Blob[] = [];
+              mr.addEventListener('dataavailable', evt => {
+                chunks.push(evt.data);
+              });
+              mr.addEventListener('stop', () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = Math.random().toString(36).slice(2) + '.webm';
+                a.click();
+              });
+              tts.addEventListener('ended', () => {
+                setTimeout(() => mr.stop(), 200);
+              }, { once: true });
+              mr.start();
+              return new Promise<void>(resolve => {
+                const delay = actx.createDelay();
+                delay.delayTime.setValueAtTime(0.1, actx.currentTime);
+                src.connect(delay);
+                delay.connect(actx.destination);
+                tts.currentTime = 0;
+                tts.play();
+                const ti = performance.now();
+                const frameTi = frames[0].timestamp;
+                const run = (ts: number) => {
+                  const tgtFrame = frames.find(f => (f.timestamp - frameTi) >= (ts - ti));
+                  if (tgtFrame) {
+                    const { gen, imd, face } = tgtFrame;
+                    ctx.putImageData(imd, 0, 0);
+                    faceTracker!.plaster(face, gen, ctx);
+                    requestAnimationFrame(run);
+                  } else {
+                    resolve();
+                  }
+                }
+                run(ti);
+              });
+            });
+          }
+          const next = queuedTTS.current!.shift();
+          if (next) setTTS(await next);
+          else queuedTTS.current = null;
+        }, 200);
       };
-      tts.addEventListener('ended', onDone);
-      tts.addEventListener('error', onDone);
+      tts.addEventListener('ended', onDone, { once: true });
+      tts.addEventListener('error', onDone, { once: true });
       return () => clearInterval(interval);
     }
   }, [faceTracker, tts, setTTS]);

@@ -16,7 +16,7 @@ export type Face = Omit<Detection, 'confidence'>;
 export class FaceTracker {
   private lastPreds: Detection[][];
   private cnv: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
+  ctx: CanvasRenderingContext2D;
   private memoryInd: number;
   private constructor(
     private classifier: CascadeClassifier,
@@ -65,15 +65,15 @@ export class FaceTracker {
         }
       : null;
   }
-  extract(face: Face, size?: number): ImageData {
+  extract(face: Face, size?: number, cnv?: HTMLCanvasElement): ImageData {
     const x = face.x - face.radius,
       y = face.y - face.radius,
       s = face.radius * 2;
     if (size != null) {
-      this.ctx.drawImage(this.cnv, x, y, s, s, 0, 0, size, size);
+      this.ctx.drawImage(cnv || this.cnv, x, y, s, s, 0, 0, size, size);
       return this.ctx.getImageData(0, 0, size, size);
     }
-    return this.ctx.getImageData(x, y, s, s);
+    return (cnv ? cnv.getContext('2d')! : this.ctx).getImageData(x, y, s, s);
   }
   plaster(face: Face, img: ImageData, ctx: CanvasRenderingContext2D) {
     const x = face.x - face.radius,
@@ -88,8 +88,8 @@ export class FaceTracker {
       img.height,
       x,
       y,
-      s * 1.01,
-      s * 1.01
+      s,
+      s
     );
   }
 }
