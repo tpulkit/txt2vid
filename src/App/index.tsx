@@ -75,16 +75,18 @@ const App: FC = () => {
   useEffect(() => {
     const driver = document.createElement('video');
     driver.addEventListener('ended', () => {
-      let nextTime = driver.currentTime - 0.05;
-      const interval = setInterval(() => {
-        driver.currentTime = nextTime;
-        if (driver.currentTime <= 0) {
-          clearInterval(interval);
-          driver.currentTime = 0;
-          driver.play();
-        }
-        nextTime -= 0.05;
-      }, 50);
+      // let nextTime = driver.currentTime - 0.1;
+      // const interval = setInterval(() => {
+      //   driver.currentTime = nextTime;
+      //   if (driver.currentTime <= 0) {
+      //     clearInterval(interval);
+      //     driver.currentTime = 0;
+      //     driver.play();
+      //   }
+      //   nextTime -= 0.1;
+      // }, 100);
+      driver.currentTime = 0;
+      driver.play();
     });
     driver.muted = true;
     document.body.appendChild(driver);
@@ -96,11 +98,14 @@ const App: FC = () => {
           echoCancellation: true,
           noiseSuppression: true
         },
-        video: { facingMode: 'user', width: 480, height: 360 }
+        video: {
+          facingMode: 'user',
+          height: { ideal: 1080 },
+          width: { ideal: 1920 }
+        }
       })
       .then(async (stream) => {
         const settings = stream.getVideoTracks()[0].getSettings();
-        console.log(stream.getAudioTracks()[0].getSettings());
         vidRef.current!.width = peerRef.current!.width = settings.width!;
         vidRef.current!.height = peerRef.current!.height = settings.height!;
         vidRef.current!.srcObject = stream;
@@ -135,22 +140,23 @@ const App: FC = () => {
       let bufs: Float32Array[] = [];
       const promises: Promise<{gen: ImageData; imd: ImageData; face: Face; timestamp: number;}>[] = [];
       const ctx = peerRef.current!.getContext('2d')!;
-      const TARGET_FPS = 15;
+      const TARGET_FPS = 12;
       const specPerFrame = (1 / TARGET_FPS) / (0.2 / SPECTROGRAM_FRAMES);
       const interval = setInterval(async () => {
-        const face = faceTracker?.find();
         const buf = new Float32Array(analyser.frequencyBinCount);
         analyser.getFloatFrequencyData(buf);
         bufs.push(buf);
         if (bufs.length == SPECTROGRAM_FRAMES) {
           const timestamp = performance.now();
+          const face = faceTracker?.find();
           if (face) {
             const { videoWidth, videoHeight } = peerDriverRef.current!;
             tmpCnv.width = peerRef.current!.width = videoWidth;
             tmpCnv.height = peerRef.current!.height = videoHeight;
             tmpCtx.drawImage(peerDriverRef.current!, 0, 0);
             const imd = tmpCtx.getImageData(0, 0, videoWidth, videoHeight);
-            promises.push(genFrames([{ img: faceTracker!.extract(face, IMG_SIZE, tmpCnv), spectrogram: bufs.slice() }]).then(result => 
+            const faceSrc = faceTracker!.extract(face, IMG_SIZE, tmpCnv);
+            promises.push(genFrames([{ img: faceSrc, spectrogram: bufs.slice() }]).then(result => 
               ({ gen: result[0], imd, face: face!, timestamp })
             ));
           }
@@ -166,7 +172,7 @@ const App: FC = () => {
               const audStream = tts.captureStream();
               const cnvStream = peerRef.current!.captureStream();
               cnvStream.addTrack(audStream.getAudioTracks()[0]);
-              const mr = new MediaRecorder(cnvStream, { mimeType: 'video/webm' });
+              const mr = new MediaRecorder(cnvStream, { mimeType: 'video/webm;codecs=vp9,opus', bitsPerSecond: 10000000 });
               const chunks: Blob[] = [];
               mr.addEventListener('dataavailable', evt => {
                 chunks.push(evt.data);
@@ -270,7 +276,8 @@ const App: FC = () => {
         _tmpPeerVidRef.current!.play();
         const restartMR = () => {
           const mr = new MediaRecorder(ms, {
-            mimeType: 'video/webm;codecs=vp8,opus'
+            mimeType: 'video/webm;codecs=vp8,opus',
+            bitsPerSecond: 10000000
           });
           mr.addEventListener('dataavailable', (evt) => {
             if (peerDriverRef.current!.srcObject) peerDriverRef.current!.srcObject = null;
@@ -283,9 +290,9 @@ const App: FC = () => {
             restartMR();
           });
           mr.start();
-          setTimeout(() => mr.stop(), 10000);
+          setTimeout(() => mr.stop(), 5000);
         };
-        restartMR();
+        setTimeout(restartMR, 0);
         if (!room.remote) asr.start();
       });
       let id = '';

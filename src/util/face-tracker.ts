@@ -26,6 +26,7 @@ export class FaceTracker {
     this.lastPreds = [];
     this.cnv = document.createElement('canvas');
     this.ctx = this.cnv.getContext('2d')!;
+    this.ctx.imageSmoothingEnabled = false;
     this.memoryInd = 0;
   }
   static async create(
@@ -65,20 +66,24 @@ export class FaceTracker {
         }
       : null;
   }
-  extract(face: Face, size?: number, cnv?: HTMLCanvasElement): ImageData {
-    const x = face.x - face.radius,
-      y = face.y - face.radius,
-      s = face.radius * 2;
-    if (size != null) {
-      this.ctx.drawImage(cnv || this.cnv, x, y, s, s, 0, 0, size, size);
-      return this.ctx.getImageData(0, 0, size, size);
-    }
-    return (cnv ? cnv.getContext('2d')! : this.ctx).getImageData(x, y, s, s);
+  private getDims(face: Face) {
+    const fx = Math.floor(face.x);
+    const fy = Math.floor(face.y);
+    const fr = Math.ceil(face.radius);
+    let w = Math.ceil(fr * 4 / 3);
+    w += w & 1;
+    const h = fr * 2;
+    const x = fx - w / 2;
+    const y = fy - h / 2;
+    return { x, y, w, h };
+  }
+  extract(face: Face, size: number, cnv?: HTMLCanvasElement): ImageData {
+    const { x, y, w, h } = this.getDims(face);
+    this.ctx.drawImage(cnv || this.cnv, x, y, w, h, 0, 0, size, size);
+    return this.ctx.getImageData(0, 0, size, size);
   }
   plaster(face: Face, img: ImageData, ctx: CanvasRenderingContext2D) {
-    const x = face.x - face.radius,
-      y = face.y - face.radius,
-      s = face.radius * 2;
+    const { x, y, w, h } = this.getDims(face);
     this.ctx.putImageData(img, 0, 0);
     ctx.drawImage(
       this.cnv,
@@ -88,8 +93,8 @@ export class FaceTracker {
       img.height,
       x,
       y,
-      s,
-      s
+      w,
+      h
     );
   }
 }

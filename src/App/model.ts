@@ -123,7 +123,7 @@ const melBasis = (() => {
 
 // Converts a full spectrum to Mel scale by multiplying it by the Mel basis matrix
 const toMelScale = (spectrum: Float32Array) => {
-  const amp = spectrum.map((db) => Math.pow(10, (db + 60) * 0.05));
+  const amp = spectrum.map((db) => Math.pow(10, (db + 40) * 0.05));
   const melScale = new Float32Array(N_MELS);
   for (let i = 0; i < N_MELS; ++i) {
     let scaledAmp = 0.0;
