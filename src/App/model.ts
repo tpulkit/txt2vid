@@ -67,23 +67,26 @@ const makeWebGLExecutor = () => {
       listeners
     });
   }
-  return (input: Record<string, Tensor>) => {
-    const tensors: WorkerTensors = {};
-    for (const name in input) {
-      tensors[name] = { data: input[name].data, dims: input[name].dims.slice() };
+  return {
+    warmUp: numWorkers,
+    execute: (input: Record<string, Tensor>) => {
+      const tensors: WorkerTensors = {};
+      for (const name in input) {
+        tensors[name] = { data: input[name].data, dims: input[name].dims.slice() };
+      }
+      const id = Math.floor(Math.random() * 1000000);
+      const target = workers.sort((a, b) => Object.keys(a.listeners).length - Object.keys(b.listeners).length)[0];
+      return new Promise<Record<string, Tensor>>(resolve => {
+        target.listeners[id] = tensors => {
+          const output: Record<string, Tensor> = {};
+          for (const name in tensors) {
+            output[name] = new Tensor(tensors[name].data, tensors[name].dims);
+          }
+          resolve(output);
+        };
+        target.send({ id, data: tensors });
+      });
     }
-    const id = Math.floor(Math.random() * 1000000);
-    const target = workers.sort((a, b) => Object.keys(a.listeners).length - Object.keys(b.listeners).length)[0];
-    return new Promise<Record<string, Tensor>>(resolve => {
-      target.listeners[id] = tensors => {
-        const output: Record<string, Tensor> = {};
-        for (const name in tensors) {
-          output[name] = new Tensor(tensors[name].data, tensors[name].dims);
-        }
-        resolve(output);
-      };
-      target.send({ id, data: tensors });
-    });
   }
 }
 
@@ -91,10 +94,13 @@ const makeWASMExecutor = () => {
   let modelProm = InferenceSession.create(modelURL, {
     executionProviders: ['wasm']
   });
-  return async (input: Record<string, Tensor>) => {
-    const model = await modelProm;
-    const outputs = await model.run(input);
-    return outputs;
+  return {
+    warmUp: 0,
+    execute: async (input: Record<string, Tensor>) => {
+      const model = await modelProm;
+      const outputs = await model.run(input);
+      return outputs;
+    }
   }
 };
 
@@ -205,7 +211,7 @@ const toInputMelSpectrogram = (spectrogram: Float32Array[]) => {
       melData[j * SPECTROGRAM_FRAMES + i] = melScaleSpectrum[j];
     }
   }
-  return new Tensor(melData, [1, 80, 16]);
+  return new Tensor(melData, [1, N_MELS, SPECTROGRAM_FRAMES]);
 };
 
 // Prepares the visual input (i.e. the video frame) for use in Wav2Lip. For some reason,
@@ -297,6 +303,16 @@ const batch = (tensors: Tensor[]) => {
   return new Tensor(buf, [tensors.length, ...base.dims]);
 };
 
+if (executor.warmUp) {
+  const inputs = {
+    mel: new Tensor(new Float32Array(N_MELS * SPECTROGRAM_FRAMES), [1, 1, N_MELS, SPECTROGRAM_FRAMES]),
+    vid: new Tensor(new Float32Array(6 * IMG_SIZE * IMG_SIZE), [1, 6, IMG_SIZE, IMG_SIZE]),
+  };
+  for (let i = 0; i < executor.warmUp; ++i) {
+    executor.execute(inputs);
+  }
+}
+
 export type FrameInput = { spectrogram: Float32Array[]; img: ImageData };
 
 // This is the exported function that takes in a spectrogram and a video frame to generate a
@@ -327,7 +343,7 @@ export async function genFrames(input: FrameInput[]) {
   );
   const imgBatch = batch(input.map(({ img }) => toInputFrame(img)));
   const ts = performance.now();
-  const result = await executor({
+  const result = await executor.execute({
     mel: melBatch,
     vid: imgBatch
   });
