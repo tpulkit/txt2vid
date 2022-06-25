@@ -2,3 +2,7 @@
 	path = Wav2Lip
 	url = https://github.com/Rudrabha/Wav2Lip
 	ignore = dirty
+[submodule "onnxruntime"]
+	path = onnxruntime
+	url = https://github.com/101arrowz/onnxruntime
+	branch = txt2vid-dev

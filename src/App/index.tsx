@@ -27,9 +27,9 @@ import {
   FrameInput,
   IMG_SIZE,
   SAMPLE_RATE,
-  SPECTROGRAM_FRAMES
+  SPECTROGRAM_FRAMES,
+  genFrames
 } from './model';
-import { genFrames } from './async-model';
 
 const ASR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -38,17 +38,9 @@ console.log(asr);
 asr.continuous = true;
 asr.interimResults = true;
 
+let rawTS = 0;
+
 let ID = localStorage.getItem('voice_id');
-if (!ID) {
-  prompt({
-    // title: 'Enter your Resemble ID',
-    // body: <div><span style={{ fontWeight: 'bold' }}>Format:</span> project_id:voice_id</div>,
-    // acceptLabel: 'Submit'
-  }).then(res => {
-    console.log(JSON.stringify(res));
-    ID
-  })
-}
 
 declare global {
   interface HTMLAudioElement {
@@ -142,6 +134,7 @@ const App: FC = () => {
       const ctx = peerRef.current!.getContext('2d')!;
       const TARGET_FPS = 12;
       const specPerFrame = (1 / TARGET_FPS) / (0.2 / SPECTROGRAM_FRAMES);
+      rawTS = performance.now();
       const interval = setInterval(async () => {
         const buf = new Float32Array(analyser.frequencyBinCount);
         analyser.getFloatFrequencyData(buf);
@@ -168,6 +161,8 @@ const App: FC = () => {
           clearInterval(interval);
           if (!(evt as ErrorEvent).error) {
             await Promise.all(promises).then(frames => {
+              console.log('total time taken:', performance.now() - rawTS);
+              console.log('raw time taken:', (performance.now() - rawTS) - tts.duration * 1000)
               frames = frames.sort((a, b) => a.timestamp - b.timestamp);
               const audStream = tts.captureStream();
               const cnvStream = peerRef.current!.captureStream();
@@ -327,7 +322,7 @@ const App: FC = () => {
           cancelLabel={null}
           body={<div>
             <div><span style={{ fontWeight: 'bold' }}>Format:</span> project_id:voice_id</div>
-            <TextField onChange={(evt: React.FormEvent<HTMLInputElement>) => {
+            <TextField onInput={(evt: React.FormEvent<HTMLInputElement>) => {
               localStorage.setItem('voice_id', evt.currentTarget.value);
             }} />
           </div>}

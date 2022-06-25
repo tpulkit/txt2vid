@@ -35,14 +35,70 @@ env.wasm.wasmPaths = {
   'ort-wasm-threaded.wasm': threadWASM,
   'ort-wasm-simd-threaded.wasm': simdThreadWASM
 };
+env.wasm.proxy = true;
 
-env.wasm.proxy
+declare var OffscreenCanvas: {
+  new(width: number, height: number): HTMLCanvasElement;
+}
 
-// This incrementally downloads the model (which is over 100MB) to the browser in the background.
-// Only when the model is ready will we be able to use this variable to run the model on our inputs.
-let modelProm = InferenceSession.create(modelURL, {
-  executionProviders: ['wasm']
-});
+const makeWebGLExecutor = () => {
+  const numWorkers = Math.min(navigator.hardwareConcurrency, 4);
+  type WorkerTensors = Record<string, { data: Tensor['data']; dims: number[] }>;
+  type Listeners = Record<number, (data: WorkerTensors) => void>;
+  const workers: Array<{
+    send(msg: unknown): void;
+    listeners: Listeners;
+  }> = [];
+  const bufProm = fetch(modelURL).then(res => res.arrayBuffer());
+  for (let i = 0; i < numWorkers; ++i) {
+    const worker = new Worker(new URL('./wgl-proxy.ts', import.meta.url), { type: 'module' });
+    const listeners: Listeners = [];
+    worker.onmessage = evt => {
+      listeners[evt.data.id](evt.data.data);
+      delete listeners[evt.data.id];
+    }
+    let sentLast = bufProm.then(buf => worker.postMessage(buf));
+    workers.push({
+      send(msg) {
+        sentLast = sentLast.then(() => {
+          worker.postMessage(msg);
+        });
+      },
+      listeners
+    });
+  }
+  return (input: Record<string, Tensor>) => {
+    const tensors: WorkerTensors = {};
+    for (const name in input) {
+      tensors[name] = { data: input[name].data, dims: input[name].dims.slice() };
+    }
+    const id = Math.floor(Math.random() * 1000000);
+    const target = workers.sort((a, b) => Object.keys(a.listeners).length - Object.keys(b.listeners).length)[0];
+    return new Promise<Record<string, Tensor>>(resolve => {
+      target.listeners[id] = tensors => {
+        const output: Record<string, Tensor> = {};
+        for (const name in tensors) {
+          output[name] = new Tensor(tensors[name].data, tensors[name].dims);
+        }
+        resolve(output);
+      };
+      target.send({ id, data: tensors });
+    });
+  }
+}
+
+const makeWASMExecutor = () => {
+  let modelProm = InferenceSession.create(modelURL, {
+    executionProviders: ['wasm']
+  });
+  return async (input: Record<string, Tensor>) => {
+    const model = await modelProm;
+    const outputs = await model.run(input);
+    return outputs;
+  }
+};
+
+const executor = typeof OffscreenCanvas != 'undefined' ? makeWebGLExecutor() : makeWASMExecutor();
 
 // The rest of this file is preprocessing logic that was used in the original Wav2Lip repo and therefore
 // had to be reimplemented in JavaScript. I couldn't use any pre-existing libraries for most of this
@@ -66,6 +122,7 @@ const freqBins = FFT_SIZE / 2;
 const totalPx = IMG_SIZE * IMG_SIZE;
 
 // Conversion functions between Hz scale and Mel scale (which better aligns with human hearing)
+// Slaney's algorithms (linear below 1 kHz, logarithmic above 1 kHz)
 const hzToMel = (hz: number) => {
   if (hz >= 1000) {
     return 15 + Math.log(hz / 1000) / 0.06875;
@@ -265,16 +322,15 @@ export async function genFrames(input: FrameInput[]) {
       `need ${SPECTROGRAM_FRAMES} spectra and a ${IMG_SIZE}x${IMG_SIZE} image per input to predict`
     );
   }
-  const ts = performance.now();
   const melBatch = batch(
     input.map(({ spectrogram }) => toInputMelSpectrogram(spectrogram))
   );
   const imgBatch = batch(input.map(({ img }) => toInputFrame(img)));
-  console.log(performance.now() - ts);
-  const model = await modelProm;
-  const result = await model.run({
+  const ts = performance.now();
+  const result = await executor({
     mel: melBatch,
     vid: imgBatch
   });
+  console.log(performance.now() - ts);
   return toOutputImgs(result.gen, input.length);
 }
