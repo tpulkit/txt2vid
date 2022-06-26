@@ -113,8 +113,10 @@ app.ws('/room/:id', (_ws, req) => {
     type: 'connect',
     msg: uid
   }));
-  ws.on('message', dat => {
-    if (typeof dat == 'string') {
+  ws.on('message', (src, isBinary) => {
+    if (isBinary) send(error('Invalid type'));
+    else {
+      const dat = src.toString();
       const nli = dat.slice(0, 257).indexOf('\n');
       const msg = dat.slice(nli);
       if (nli == -1) send(error('No target delimiter found'));
@@ -123,7 +125,7 @@ app.ws('/room/:id', (_ws, req) => {
         if (room.conns[to]) room.conns[to].send(uid + msg);
         else send(error('User does not exist'));
       } else broadcast(msg);
-    } else send(error('Invalid type'));
+    }
   });
   ws.on('close', () => {
     delete room.conns[uid!];

@@ -1,4 +1,4 @@
-import { EventEmitter } from '../sub';
+import { EventEmitter } from '..';
 
 export interface ConnectionEvents<T> {
   connect: void;

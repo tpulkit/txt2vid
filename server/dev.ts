@@ -1,14 +1,17 @@
 import api from '.';
+import Parcel from '@parcel/core';
 import express from 'express';
 import expressWS from 'express-ws';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import ngrok from 'ngrok';
+import path from 'path';
 
 const PORT = 4200;
+const BUNDLER_PORT = 4201;
 
 const { app } = expressWS(express());
 const proxyMiddleware = createProxyMiddleware({
-  target: 'http://localhost:4201'
+  target: `http://localhost:${BUNDLER_PORT}`
 });
 app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
@@ -21,6 +24,15 @@ app.use(proxyMiddleware);
 app.listen(PORT, () => {
   console.log('Listening on http://localhost:4200');
 });
+
+const bundler = new Parcel({
+  entries: path.resolve(__dirname, '..', 'src', 'index.html'),
+  defaultConfig: '@parcel/config-default',
+  serveOptions: { port: BUNDLER_PORT },
+  hmrOptions: { port: BUNDLER_PORT },
+  additionalReporters: [{ packageName: '@parcel/reporter-cli', resolveFrom: __dirname }]
+});
+bundler.watch();
 
 if (!process.env.WEBSITE) {
   ngrok.connect(PORT).then(result => {

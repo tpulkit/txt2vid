@@ -2,5 +2,8 @@
   "extends": [
     "@parcel/config-default",
     "parcel-config-pwa-manifest"
-  ]
+  ],
+  "compressors": {
+    "*.{html,css,js,wasm,pico}": ["...", "@parcel/compressor-gzip", "@parcel/compressor-brotli"]
+  }
 }

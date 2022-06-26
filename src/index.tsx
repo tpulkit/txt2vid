@@ -1,13 +1,11 @@
-import { createRoot } from 'react-dom/client';
+import { render } from 'react-dom';
 import App from './App';
 import './polyfill';
 
 if (process.env.NODE_ENV == 'production') {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register(new URL('sw.ts', import.meta.url));
+    navigator.serviceWorker.register(new URL('sw.ts', import.meta.url), { type: 'module' });
   }
 }
 
-const root = createRoot(document.getElementById('root')!);
-
-root.render(<App />);
+render(<App />, document.getElementById('root')!);

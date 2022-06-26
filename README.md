@@ -79,7 +79,7 @@ This will soon be converted into a part of the video conferencing platform. To t
 This project contains a lot of code designed around peer-to-peer video conferencing and data exchange that has been optimized for mobile-friendliness and real-world performance. However for the time being, I would only worry about the following file:
 
 ```
-src/App/model.ts
+src/app/model.ts
 ```
 
 This file contains the preprocessing and postprocessing logic for the Wav2Lip model, and exports a `genFrames` function that accepts spectrogram and video-frame input to generate a lipsynced video-frame output. I added many comments to this file to try to explain the code.

@@ -1,7 +1,9 @@
 node_modules/
 .parcel-cache/
 dist/
+server-dist/
 *.onnx
 *.pth
 .env
 .python-version
+yarn-error.log

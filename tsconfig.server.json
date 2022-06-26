@@ -7,7 +7,9 @@
     "resolveJsonModule": true,
     "strict": true,
     "target": "ESNext",
-    "lib": ["ESNext"]
+    "lib": ["ESNext"],
+    "outDir": "server-dist",
+    "types": ["node"]
   },
   "include": ["server/**/*.ts", "server/**/*.d.ts"],
   "exclude": []

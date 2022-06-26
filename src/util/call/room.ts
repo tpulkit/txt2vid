@@ -13,7 +13,8 @@ interface RoomP2PEvents {
 }
 
 interface RoomEvents {
-  ready: void;
+  connect: string;
+  disconnect: string;
   vid: MediaStream;
   speech: string;
   id: string;
@@ -22,24 +23,21 @@ interface RoomEvents {
 
 export class Room extends EventEmitter<RoomEvents> {
   name?: string;
-  remote?: boolean;
-  private conn: P2P<RoomP2PEvents> | null;
+  _tmpRemote?: boolean;
+  private conns: Record<string, P2P<RoomP2PEvents>>;
   private signal: Sendable<SignalingConnectionMessages, unknown>;
   constructor(id: string, name: string, pw?: string) {
     super();
     this.signal = new S2C<SignalingConnectionMessages, unknown>(
       `/api/room/${id}?un=${encodeURIComponent(name)}${pw ? '&pw=' + encodeURIComponent(pw) : ''}`
     );
-    this.conn = null;
-    let foundPeer: string | null = null;
-    const peerConnect = async (remote: boolean) => {
-      this.remote = remote;
-      console.log('connecting to peer', foundPeer);
-      this.conn = await P2P.init<RoomP2PEvents>(
-        this.signal.sub(foundPeer!),
+    this.conns = {};
+    const peerConnect = async (peer: string, remote: boolean) => {
+      const conn = this.conns[peer] = await P2P.init<RoomP2PEvents>(
+        this.signal.sub(peer),
         remote
       );
-      this.conn.on('message', (evt) => {
+      conn.on('message', (evt) => {
         switch (evt.type) {
           case 'speech':
             this.emit('speech', evt.msg);
@@ -52,35 +50,33 @@ export class Room extends EventEmitter<RoomEvents> {
             break;
         }
       });
-      this.conn.on('stream', (stream) => {
+      conn.on('stream', (stream) => {
         this.emit('vid', stream);
       });
-      this.emit('ready', undefined);
+      conn.on('disconnect', () => {
+        this.emit('disconnect', peer);
+      });
+      conn.on('connect', () => {
+        this.emit('connect', peer);
+      });
     };
     this.signal.on('message', (evt) => {
       switch (evt.type) {
         case 'welcome':
           const [ownName, ...others] = evt.msg;
           this.name = ownName;
-          if (others.length > 1) {
-            this.disconnect();
-          } else if (others.length) {
-            foundPeer = others[0];
-            peerConnect(true);
+          this._tmpRemote = false;
+          for (const other of others) {
+            this._tmpRemote = true;
+            peerConnect(other, true);
           }
           break;
         case 'connect':
-          if (!foundPeer) {
-            foundPeer = evt.msg;
-            peerConnect(false);
-          }
+          peerConnect(evt.msg, false);
           break;
         case 'disconnect':
-          if (foundPeer == evt.msg) {
-            foundPeer = null;
-            this.conn!.disconnect();
-            this.conn = null;
-          }
+          this.conns[evt.msg]?.disconnect();
+          delete this.conns[evt.msg];
           break;
         case 'error':
           this.emit(
@@ -92,21 +88,26 @@ export class Room extends EventEmitter<RoomEvents> {
     });
   }
 
-  sendID(id: string) {
-    this.conn?.send('id', id);
+  broadcast(run: (conn: P2P<RoomP2PEvents>) => void) {
+    for (const conn in this.conns) {
+      run(this.conns[conn]);
+    }
   }
 
-  sendVid(stream: MediaStream) {
-    this.conn?.sendMediaStream(stream);
+  sendID(id: string, to: string) {
+    this.conns[to].send('id', id);
+  }
+
+  sendVid(stream: MediaStream, to: string) {
+    this.conns[to].sendMediaStream(stream);
   }
 
   sendSpeech(speech: string) {
-    this.conn?.send('speech', speech);
+    this.broadcast(conn => conn.send('speech', speech));
   }
 
   disconnect() {
     this.signal.disconnect();
-    if (this.conn) this.conn.disconnect();
-    this.conn = null;
+    this.broadcast(conn => conn.disconnect());
   }
 }

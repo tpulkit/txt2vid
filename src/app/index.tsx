@@ -1,27 +1,14 @@
-import React, {
-  FC,
-  useEffect,
-  useLayoutEffect,
-  useState,
-  useRef
-} from 'react';
-import {
-  ThemeProvider,
-  RMWCProvider,
-  TextField,
-  Checkbox,
-  Button,
-  SimpleDialog,
-  DialogQueue
-} from 'rmwc';
+import { useEffect, useState, useRef } from 'react';
+import { ThemeProvider, RMWCProvider, TextField, DialogQueue } from 'rmwc';
 import '@rmwc/textfield/styles';
 import '@rmwc/checkbox/styles';
 import '@rmwc/button/styles';
 import '@rmwc/dialog/styles';
 import {
   theme,
-  prompt,
   dialogs,
+  prompt,
+  useGlobalState,
   Face,
   FaceTracker,
   makeTTS,
@@ -30,27 +17,15 @@ import {
   SAMPLE_RATE,
   SPECTROGRAM_FRAMES,
   genFrames,
-  Room
+  Room,
+  STTEngine
 } from '../util';
 
 const ASR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-const asr = new ASR();
-console.log(asr);
-asr.continuous = true;
-asr.interimResults = true;
-
-let rawTS = 0;
-
-setTimeout(() => {
-  console.log('prompting')
-  prompt({
-    title: 'Welcome to the Face Tracker!',
-  }).then(console.log)
-  
-}, 100)
-
-let ID = localStorage.getItem('voice_id');
+const sr = new ASR();
+sr.continuous = true;
+sr.interimResults = true;
 
 declare global {
   interface HTMLAudioElement {
@@ -63,8 +38,10 @@ declare global {
 }
 
 const un = Math.random().toString(36).slice(2);
-const App: FC = () => {
+const App = () => {
+  const [voiceID, setVoiceID] = useGlobalState('voiceID');
   const [roomID, setRoomID] = useState('');
+  const [asr, setASR] = useState<STTEngine | null>(null)
   const [room, setRoom] = useState<Room | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [faceTracker, setFaceTracker] = useState<FaceTracker | null>(null);
@@ -74,6 +51,24 @@ const App: FC = () => {
   const _tmpPeerVidRef = useRef<HTMLVideoElement>(null);
   const peerRef = useRef<HTMLCanvasElement>(null);
   const queuedTTS = useRef<Promise<HTMLAudioElement>[] | null>(null);
+  // Ask for voice ID if necessary
+  useEffect(() => {
+    if (!voiceID) {
+      prompt({
+        title: 'Enter your Resemble voice ID',
+        body: <div><span style={{ fontWeight: 'bold' }}>Format:</span> project_id:voice_id</div>,
+        preventOutsideDismiss: true,
+        acceptLabel: 'Submit',
+        cancelLabel: null
+      }).then((res: string) => {
+        setVoiceID(res);
+      })
+    }
+  }, [voiceID]);
+  // Create ASR
+  useEffect(() => {
+    setASR(new STTEngine());
+  }, []);
   useEffect(() => {
     const driver = document.createElement('video');
     driver.addEventListener('ended', () => {
@@ -149,7 +144,6 @@ const App: FC = () => {
       const ctx = peerRef.current!.getContext('2d')!;
       const TARGET_FPS = 12;
       const specPerFrame = 1 / TARGET_FPS / (0.2 / SPECTROGRAM_FRAMES);
-      rawTS = performance.now();
       const interval = setInterval(async () => {
         const buf = new Float32Array(analyser.frequencyBinCount);
         analyser.getFloatFrequencyData(buf);
@@ -183,18 +177,13 @@ const App: FC = () => {
           clearInterval(interval);
           if (!(evt as ErrorEvent).error) {
             await Promise.all(promises).then((frames) => {
-              console.log('total time taken:', performance.now() - rawTS);
-              console.log(
-                'raw time taken:',
-                performance.now() - rawTS - tts.duration * 1000
-              );
               frames = frames.sort((a, b) => a.timestamp - b.timestamp);
               const audStream = tts.captureStream();
               const cnvStream = peerRef.current!.captureStream();
               cnvStream.addTrack(audStream.getAudioTracks()[0]);
               const mr = new MediaRecorder(cnvStream, {
                 mimeType: 'video/webm;codecs=vp9,opus',
-                bitsPerSecond: 10000000
+                videoBitsPerSecond: 10000000
               });
               const chunks: Blob[] = [];
               mr.addEventListener('dataavailable', (evt) => {
@@ -252,51 +241,12 @@ const App: FC = () => {
       return () => clearInterval(interval);
     }
   }, [faceTracker, tts, setTTS]);
-  useLayoutEffect(() => {
-    if (room) {
-      let stripFront = '';
-      const asrHandler = (evt: SpeechRecognitionEvent) => {
-        console.log(evt);
-        let readyMsg = '';
-        let finalizedUpTo = 0;
-        for (let i = 0; i < evt.results.length; ++i) {
-          const result = evt.results.item(i);
-          const alt = result.item(0);
-          if (alt.confidence < 0.7 && !result.isFinal) break;
-          readyMsg += alt.transcript + ' ';
-          if (result.isFinal)
-            finalizedUpTo = readyMsg.length - stripFront.length;
-        }
-        if (!readyMsg.startsWith(stripFront)) {
-          console.warn('tts mismatch, ignoring');
-          for (let i = stripFront.length; i > 0; --i) {
-            if (readyMsg[i] == ' ') {
-              stripFront = readyMsg.slice(0, i);
-              break;
-            }
-          }
-        }
-        readyMsg = readyMsg.slice(stripFront.length);
-        if (readyMsg.length > 100) {
-          const send = readyMsg.slice(0, 50);
-          stripFront += send;
-          console.log('sending', send);
-          room.sendSpeech(send);
-        } else if (finalizedUpTo) {
-          const send = readyMsg.slice(0, finalizedUpTo);
-          stripFront += send;
-          console.log('sending finalized', send);
-          room.sendSpeech(send);
-        }
-      };
-      asr.addEventListener('result', asrHandler);
-      const stopHandler = () => {
-        asr.start();
-      };
-      asr.addEventListener('end', stopHandler);
-      const rcb = room.on('ready', () => {
-        room.sendID(ID!);
-        room.sendVid(stream!);
+  useEffect(() => {
+    if (room && asr) {
+      const speechCB = asr.on('speech', speech => room.sendSpeech(speech));
+      const rcb = room.on('connect', peer => {
+        room.sendID(voiceID, peer);
+        room.sendVid(stream!, peer);
       });
       const cb = room.on('vid', async (ms) => {
         setFaceTracker(await FaceTracker.create(peerDriverRef.current!));
@@ -306,7 +256,7 @@ const App: FC = () => {
         const restartMR = () => {
           const mr = new MediaRecorder(ms, {
             mimeType: 'video/webm;codecs=vp8,opus',
-            bitsPerSecond: 10000000
+            videoBitsPerSecond: 10000000
           });
           mr.addEventListener('dataavailable', (evt) => {
             if (peerDriverRef.current!.srcObject)
@@ -323,7 +273,7 @@ const App: FC = () => {
           setTimeout(() => mr.stop(), 5000);
         };
         setTimeout(restartMR, 0);
-        if (!room.remote) asr.start();
+        if (!room._tmpRemote) asr.start();
       });
       let id = '';
       const icb = room.on('id', (msg) => {
@@ -338,13 +288,12 @@ const App: FC = () => {
         }
       });
       return () => {
-        room.off('ready', rcb);
+        asr.off('speech', speechCB);
+        room.off('connect', rcb);
         room.off('vid', cb);
         room.off('speech', scb);
         room.off('id', icb);
-        asr.removeEventListener('end', stopHandler);
-        asr.removeEventListener('result', asrHandler);
-        if (!room.remote) asr.stop();
+        asr.stop();
       };
     }
   }, [room, stream, setFaceTracker, setTTS]);
@@ -352,29 +301,6 @@ const App: FC = () => {
     <ThemeProvider options={theme}>
       <RMWCProvider>
         <DialogQueue dialogs={dialogs} />
-        <SimpleDialog
-          title="Enter your Resemble ID"
-          acceptLabel="Submit"
-          cancelLabel={null}
-          body={
-            <div>
-              <div>
-                <span style={{ fontWeight: 'bold' }}>Format:</span>{' '}
-                project_id:voice_id
-              </div>
-              <TextField
-                onInput={(evt: React.FormEvent<HTMLInputElement>) => {
-                  localStorage.setItem('voice_id', evt.currentTarget.value);
-                }}
-              />
-            </div>
-          }
-          preventOutsideDismiss
-          open={!ID}
-          onClose={(evt) => {
-            ID = localStorage.getItem('voice_id');
-          }}
-        />
         <TextField
           placeholder="Room ID"
           onKeyDown={(ev) => {
@@ -388,7 +314,7 @@ const App: FC = () => {
           placeholder="Manual TTS (your voice)"
           onKeyDown={async (ev) => {
             if (ev.key == 'Enter') {
-              setTTS(await makeTTS(ev.currentTarget.value, ID!));
+              setTTS(await makeTTS(ev.currentTarget.value, voiceID));
               ev.currentTarget.value = '';
             }
           }}

@@ -5,3 +5,4 @@ export * from './face-tracking';
 export * from './network/resemble';
 export * from './ml';
 export * from './call';
+export * from './state';
