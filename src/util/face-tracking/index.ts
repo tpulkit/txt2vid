@@ -1,4 +1,4 @@
-import modelURL from 'url:../assets/model.pico';
+import modelURL from 'url:../../assets/model.pico';
 import {
   CascadeClassifier,
   clusterDetections,
@@ -70,7 +70,7 @@ export class FaceTracker {
     const fx = Math.floor(face.x);
     const fy = Math.floor(face.y);
     const fr = Math.ceil(face.radius);
-    let w = Math.ceil(fr * 4 / 3);
+    let w = Math.ceil((fr * 4) / 3);
     w += w & 1;
     const h = fr * 2;
     const x = fx - w / 2;
@@ -85,16 +85,6 @@ export class FaceTracker {
   plaster(face: Face, img: ImageData, ctx: CanvasRenderingContext2D) {
     const { x, y, w, h } = this.getDims(face);
     this.ctx.putImageData(img, 0, 0);
-    ctx.drawImage(
-      this.cnv,
-      0,
-      0,
-      img.width,
-      img.height,
-      x,
-      y,
-      w,
-      h
-    );
+    ctx.drawImage(this.cnv, 0, 0, img.width, img.height, x, y, w, h);
   }
 }

@@ -1,7 +1,7 @@
-export { default as theme } from './theme';
 export * as network from './network';
-export * from './dialog';
+export * from './ui';
 export * from './sub';
-export * from './face-tracker';
-export * from './vid-stream';
-export * from './resemble';
+export * from './face-tracking';
+export * from './network/resemble';
+export * from './ml';
+export * from './call';

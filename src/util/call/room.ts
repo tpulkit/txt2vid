@@ -1,5 +1,5 @@
-import { S2C, P2P, Sendable } from '../util/network';
-import { EventEmitter, mediaStreamToRS, rsToMediaSource } from '../util';
+import { S2C, P2P, Sendable } from '../network';
+import { EventEmitter } from '..';
 
 interface SignalingConnectionMessages {
   welcome: string[];
@@ -20,7 +20,7 @@ interface RoomEvents {
   error: Error;
 }
 
-export default class Room extends EventEmitter<RoomEvents> {
+export class Room extends EventEmitter<RoomEvents> {
   name?: string;
   remote?: boolean;
   private conn: P2P<RoomP2PEvents> | null;
@@ -28,7 +28,7 @@ export default class Room extends EventEmitter<RoomEvents> {
   constructor(id: string, name: string, pw?: string) {
     super();
     this.signal = new S2C<SignalingConnectionMessages, unknown>(
-      `/api/room/${id}?un=${name}${pw ? '&pw=' + pw : ''}`
+      `/api/room/${id}?un=${encodeURIComponent(name)}${pw ? '&pw=' + encodeURIComponent(pw) : ''}`
     );
     this.conn = null;
     let foundPeer: string | null = null;

@@ -1,6 +1,6 @@
-import { render } from 'react-dom';
-import './polyfill';
+import { createRoot } from 'react-dom/client';
 import App from './App';
+import './polyfill';
 
 if (process.env.NODE_ENV == 'production') {
   if ('serviceWorker' in navigator) {
@@ -8,4 +8,6 @@ if (process.env.NODE_ENV == 'production') {
   }
 }
 
-render(<App />, document.getElementById('root'));
+const root = createRoot(document.getElementById('root')!);
+
+root.render(<App />);

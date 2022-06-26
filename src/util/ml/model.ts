@@ -1,6 +1,6 @@
 // This file has many comments to clarify how the ONNX model is actually run.
 // This import creates a modelURL variable that contains a URL pointing to the converted ONNX model file
-import modelURL from 'url:../assets/wav2lip_gan.onnx';
+import modelURL from 'url:../../assets/wav2lip_gan.onnx';
 
 // These imports create variables that reference URLs to the WebAssembly runtimes necessary to efficiently
 // run the model. WebAssembly is an instruction set like x86 or ARM, but with instructions that can be
@@ -37,27 +37,29 @@ env.wasm.wasmPaths = {
 };
 env.wasm.proxy = true;
 
-declare var OffscreenCanvas: {
-  new(width: number, height: number): HTMLCanvasElement;
-}
+declare let OffscreenCanvas: {
+  new (width: number, height: number): HTMLCanvasElement;
+};
 
 const makeWebGLExecutor = () => {
   const numWorkers = Math.min(navigator.hardwareConcurrency, 4);
   type WorkerTensors = Record<string, { data: Tensor['data']; dims: number[] }>;
   type Listeners = Record<number, (data: WorkerTensors) => void>;
-  const workers: Array<{
-    send(msg: unknown): void;
+  const workers: {
+    send: (msg: unknown) => void;
     listeners: Listeners;
-  }> = [];
-  const bufProm = fetch(modelURL).then(res => res.arrayBuffer());
+  }[] = [];
+  const bufProm = fetch(modelURL).then((res) => res.arrayBuffer());
   for (let i = 0; i < numWorkers; ++i) {
-    const worker = new Worker(new URL('./wgl-proxy.ts', import.meta.url), { type: 'module' });
+    const worker = new Worker(new URL('./wgl-proxy.ts', import.meta.url), {
+      type: 'module'
+    });
     const listeners: Listeners = [];
-    worker.onmessage = evt => {
+    worker.onmessage = (evt) => {
       listeners[evt.data.id](evt.data.data);
       delete listeners[evt.data.id];
-    }
-    let sentLast = bufProm.then(buf => worker.postMessage(buf));
+    };
+    let sentLast = bufProm.then((buf) => worker.postMessage(buf));
     workers.push({
       send(msg) {
         sentLast = sentLast.then(() => {
@@ -72,12 +74,18 @@ const makeWebGLExecutor = () => {
     execute: (input: Record<string, Tensor>) => {
       const tensors: WorkerTensors = {};
       for (const name in input) {
-        tensors[name] = { data: input[name].data, dims: input[name].dims.slice() };
+        tensors[name] = {
+          data: input[name].data,
+          dims: input[name].dims.slice()
+        };
       }
       const id = Math.floor(Math.random() * 1000000);
-      const target = workers.sort((a, b) => Object.keys(a.listeners).length - Object.keys(b.listeners).length)[0];
-      return new Promise<Record<string, Tensor>>(resolve => {
-        target.listeners[id] = tensors => {
+      const target = workers.sort(
+        (a, b) =>
+          Object.keys(a.listeners).length - Object.keys(b.listeners).length
+      )[0];
+      return new Promise<Record<string, Tensor>>((resolve) => {
+        target.listeners[id] = (tensors) => {
           const output: Record<string, Tensor> = {};
           for (const name in tensors) {
             output[name] = new Tensor(tensors[name].data, tensors[name].dims);
@@ -87,11 +95,11 @@ const makeWebGLExecutor = () => {
         target.send({ id, data: tensors });
       });
     }
-  }
-}
+  };
+};
 
 const makeWASMExecutor = () => {
-  let modelProm = InferenceSession.create(modelURL, {
+  const modelProm = InferenceSession.create(modelURL, {
     executionProviders: ['wasm']
   });
   return {
@@ -101,10 +109,13 @@ const makeWASMExecutor = () => {
       const outputs = await model.run(input);
       return outputs;
     }
-  }
+  };
 };
 
-const executor = typeof OffscreenCanvas != 'undefined' ? makeWebGLExecutor() : makeWASMExecutor();
+const executor =
+  typeof OffscreenCanvas != 'undefined'
+    ? makeWebGLExecutor()
+    : makeWASMExecutor();
 
 // The rest of this file is preprocessing logic that was used in the original Wav2Lip repo and therefore
 // had to be reimplemented in JavaScript. I couldn't use any pre-existing libraries for most of this
@@ -133,14 +144,14 @@ const hzToMel = (hz: number) => {
   if (hz >= 1000) {
     return 15 + Math.log(hz / 1000) / 0.06875;
   } else {
-    return hz * 3 / 200;
+    return (hz * 3) / 200;
   }
 };
 const melToHz = (mel: number) => {
   if (mel >= 15) {
     return Math.exp((mel - 15) * 0.06875) * 1000;
   } else {
-    return mel * 200 / 3;
+    return (mel * 200) / 3;
   }
 };
 
@@ -182,7 +193,7 @@ const melBasis = (() => {
     }
   }
   return weights;
-})();  
+})();
 
 // Converts a full spectrum to Mel scale by multiplying it by the Mel basis matrix
 const toMelScale = (spectrum: Float32Array) => {
@@ -305,8 +316,18 @@ const batch = (tensors: Tensor[]) => {
 
 if (executor.warmUp) {
   const inputs = {
-    mel: new Tensor(new Float32Array(N_MELS * SPECTROGRAM_FRAMES), [1, 1, N_MELS, SPECTROGRAM_FRAMES]),
-    vid: new Tensor(new Float32Array(6 * IMG_SIZE * IMG_SIZE), [1, 6, IMG_SIZE, IMG_SIZE]),
+    mel: new Tensor(new Float32Array(N_MELS * SPECTROGRAM_FRAMES), [
+      1,
+      1,
+      N_MELS,
+      SPECTROGRAM_FRAMES
+    ]),
+    vid: new Tensor(new Float32Array(6 * IMG_SIZE * IMG_SIZE), [
+      1,
+      6,
+      IMG_SIZE,
+      IMG_SIZE
+    ])
   };
   for (let i = 0; i < executor.warmUp; ++i) {
     executor.execute(inputs);

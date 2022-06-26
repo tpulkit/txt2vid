@@ -3,7 +3,6 @@ import React, {
   useEffect,
   useLayoutEffect,
   useState,
-  useMemo,
   useRef
 } from 'react';
 import {
@@ -12,24 +11,27 @@ import {
   TextField,
   Checkbox,
   Button,
-  SimpleDialog
+  SimpleDialog,
+  DialogQueue
 } from 'rmwc';
 import '@rmwc/textfield/styles';
 import '@rmwc/checkbox/styles';
 import '@rmwc/button/styles';
 import '@rmwc/dialog/styles';
-import { css } from '@emotion/react';
-import { createWriteStream } from 'streamsaver';
-import { theme, prompt, dialogs, FaceTracker, makeTTS, Face } from '../util';
-import Room from './room';
 import {
+  theme,
+  prompt,
+  dialogs,
+  Face,
+  FaceTracker,
+  makeTTS,
   FFT_SIZE,
-  FrameInput,
   IMG_SIZE,
   SAMPLE_RATE,
   SPECTROGRAM_FRAMES,
-  genFrames
-} from './model';
+  genFrames,
+  Room
+} from '../util';
 
 const ASR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -40,13 +42,21 @@ asr.interimResults = true;
 
 let rawTS = 0;
 
+setTimeout(() => {
+  console.log('prompting')
+  prompt({
+    title: 'Welcome to the Face Tracker!',
+  }).then(console.log)
+  
+}, 100)
+
 let ID = localStorage.getItem('voice_id');
 
 declare global {
   interface HTMLAudioElement {
     captureStream(): MediaStream;
   }
-  
+
   interface HTMLCanvasElement {
     captureStream(): MediaStream;
   }
@@ -130,10 +140,15 @@ const App: FC = () => {
       const tmpCnv = document.createElement('canvas');
       const tmpCtx = tmpCnv.getContext('2d')!;
       let bufs: Float32Array[] = [];
-      const promises: Promise<{gen: ImageData; imd: ImageData; face: Face; timestamp: number;}>[] = [];
+      const promises: Promise<{
+        gen: ImageData;
+        imd: ImageData;
+        face: Face;
+        timestamp: number;
+      }>[] = [];
       const ctx = peerRef.current!.getContext('2d')!;
       const TARGET_FPS = 12;
-      const specPerFrame = (1 / TARGET_FPS) / (0.2 / SPECTROGRAM_FRAMES);
+      const specPerFrame = 1 / TARGET_FPS / (0.2 / SPECTROGRAM_FRAMES);
       rawTS = performance.now();
       const interval = setInterval(async () => {
         const buf = new Float32Array(analyser.frequencyBinCount);
@@ -149,9 +164,16 @@ const App: FC = () => {
             tmpCtx.drawImage(peerDriverRef.current!, 0, 0);
             const imd = tmpCtx.getImageData(0, 0, videoWidth, videoHeight);
             const faceSrc = faceTracker!.extract(face, IMG_SIZE, tmpCnv);
-            promises.push(genFrames([{ img: faceSrc, spectrogram: bufs.slice() }]).then(result => 
-              ({ gen: result[0], imd, face: face!, timestamp })
-            ));
+            promises.push(
+              genFrames([{ img: faceSrc, spectrogram: bufs.slice() }]).then(
+                (result) => ({
+                  gen: result[0],
+                  imd,
+                  face: face,
+                  timestamp
+                })
+              )
+            );
           }
           bufs = bufs.slice(Math.ceil(specPerFrame));
         }
@@ -160,16 +182,22 @@ const App: FC = () => {
         setTimeout(async () => {
           clearInterval(interval);
           if (!(evt as ErrorEvent).error) {
-            await Promise.all(promises).then(frames => {
+            await Promise.all(promises).then((frames) => {
               console.log('total time taken:', performance.now() - rawTS);
-              console.log('raw time taken:', (performance.now() - rawTS) - tts.duration * 1000)
+              console.log(
+                'raw time taken:',
+                performance.now() - rawTS - tts.duration * 1000
+              );
               frames = frames.sort((a, b) => a.timestamp - b.timestamp);
               const audStream = tts.captureStream();
               const cnvStream = peerRef.current!.captureStream();
               cnvStream.addTrack(audStream.getAudioTracks()[0]);
-              const mr = new MediaRecorder(cnvStream, { mimeType: 'video/webm;codecs=vp9,opus', bitsPerSecond: 10000000 });
+              const mr = new MediaRecorder(cnvStream, {
+                mimeType: 'video/webm;codecs=vp9,opus',
+                bitsPerSecond: 10000000
+              });
               const chunks: Blob[] = [];
-              mr.addEventListener('dataavailable', evt => {
+              mr.addEventListener('dataavailable', (evt) => {
                 chunks.push(evt.data);
               });
               mr.addEventListener('stop', () => {
@@ -180,11 +208,15 @@ const App: FC = () => {
                 a.download = Math.random().toString(36).slice(2) + '.webm';
                 a.click();
               });
-              tts.addEventListener('ended', () => {
-                setTimeout(() => mr.stop(), 200);
-              }, { once: true });
+              tts.addEventListener(
+                'ended',
+                () => {
+                  setTimeout(() => mr.stop(), 200);
+                },
+                { once: true }
+              );
               mr.start();
-              return new Promise<void>(resolve => {
+              return new Promise<void>((resolve) => {
                 const delay = actx.createDelay();
                 delay.delayTime.setValueAtTime(0.1, actx.currentTime);
                 src.connect(delay);
@@ -194,7 +226,9 @@ const App: FC = () => {
                 const ti = performance.now();
                 const frameTi = frames[0].timestamp;
                 const run = (ts: number) => {
-                  const tgtFrame = frames.find(f => (f.timestamp - frameTi) >= (ts - ti));
+                  const tgtFrame = frames.find(
+                    (f) => f.timestamp - frameTi >= ts - ti
+                  );
                   if (tgtFrame) {
                     const { gen, imd, face } = tgtFrame;
                     ctx.putImageData(imd, 0, 0);
@@ -203,7 +237,7 @@ const App: FC = () => {
                   } else {
                     resolve();
                   }
-                }
+                };
                 run(ti);
               });
             });
@@ -275,7 +309,8 @@ const App: FC = () => {
             bitsPerSecond: 10000000
           });
           mr.addEventListener('dataavailable', (evt) => {
-            if (peerDriverRef.current!.srcObject) peerDriverRef.current!.srcObject = null;
+            if (peerDriverRef.current!.srcObject)
+              peerDriverRef.current!.srcObject = null;
             if (peerDriverRef.current!.src) {
               return; // for debugging only - in production we should always get the latest driver
               URL.revokeObjectURL(peerDriverRef.current!.src);
@@ -316,19 +351,27 @@ const App: FC = () => {
   return (
     <ThemeProvider options={theme}>
       <RMWCProvider>
+        <DialogQueue dialogs={dialogs} />
         <SimpleDialog
           title="Enter your Resemble ID"
           acceptLabel="Submit"
           cancelLabel={null}
-          body={<div>
-            <div><span style={{ fontWeight: 'bold' }}>Format:</span> project_id:voice_id</div>
-            <TextField onInput={(evt: React.FormEvent<HTMLInputElement>) => {
-              localStorage.setItem('voice_id', evt.currentTarget.value);
-            }} />
-          </div>}
+          body={
+            <div>
+              <div>
+                <span style={{ fontWeight: 'bold' }}>Format:</span>{' '}
+                project_id:voice_id
+              </div>
+              <TextField
+                onInput={(evt: React.FormEvent<HTMLInputElement>) => {
+                  localStorage.setItem('voice_id', evt.currentTarget.value);
+                }}
+              />
+            </div>
+          }
           preventOutsideDismiss
           open={!ID}
-          onClose={evt => {
+          onClose={(evt) => {
             ID = localStorage.getItem('voice_id');
           }}
         />
@@ -345,9 +388,7 @@ const App: FC = () => {
           placeholder="Manual TTS (your voice)"
           onKeyDown={async (ev) => {
             if (ev.key == 'Enter') {
-              setTTS(
-                await makeTTS(ev.currentTarget.value, ID!)
-              );
+              setTTS(await makeTTS(ev.currentTarget.value, ID!));
               ev.currentTarget.value = '';
             }
           }}
