@@ -7,4 +7,3 @@ export {
 } from './p2p';
 export { default as S2C } from './s2c';
 export { default as Sendable } from './sendable';
-export * from './resemble';

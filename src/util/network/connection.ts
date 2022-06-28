@@ -1,4 +1,4 @@
-import { EventEmitter } from '..';
+import { EventEmitter } from '../sub';
 
 export interface ConnectionEvents<T> {
   connect: void;
@@ -24,7 +24,7 @@ export type NonConnectionEvents<E> = Record<string | symbol, unknown> &
 export default abstract class Connection<
   E,
   M = E,
-  L extends NonConnectionEvents<E> = {}
+  L extends NonConnectionEvents<E> = Record<never, never>
 > extends EventEmitter<ConnectionEvents<E> & L> {
   abstract send<K extends keyof M>(type: K, msg: M[K]): void;
   abstract sendRaw(msg: ReadableStream<Uint8Array>): Promise<void>;

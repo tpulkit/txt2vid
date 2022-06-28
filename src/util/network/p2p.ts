@@ -27,7 +27,7 @@ export type P2PCustomEvents<E> = NonConnectionEvents<E> &
 export default class RTCConnection<
   E,
   M = E,
-  L extends P2PCustomEvents<E> = {}
+  L extends P2PCustomEvents<E> = Record<never, never>
 > extends Sendable<E, M, L & CustomEvents> {
   private static readonly CONFIG: RTCConfiguration = {
     iceServers: [

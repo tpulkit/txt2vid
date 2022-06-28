@@ -15,7 +15,7 @@ export interface RawSendable {
 export default class Sendable<
   E,
   M = E,
-  L extends NonConnectionEvents<E> = {}
+  L extends NonConnectionEvents<E> = Record<never, never>
 > extends Connection<E, M, L> {
   private controllers: ReadableStreamDefaultController<Uint8Array>[] = [];
   private controllerID = 0;

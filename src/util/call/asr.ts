@@ -1,4 +1,4 @@
-import { EventEmitter } from '..';
+import { EventEmitter } from '../sub';
 
 const ASR = window.SpeechRecognition || window.webkitSpeechRecognition;
 

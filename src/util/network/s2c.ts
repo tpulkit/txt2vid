@@ -1,6 +1,11 @@
+import { NonConnectionEvents } from './connection';
 import Sendable from './sendable';
 
-export default class WSConnection<E, M = E> extends Sendable<E, M> {
+export default class WSConnection<
+  E,
+  M = E,
+  L extends NonConnectionEvents<E> = Record<never, never>
+> extends Sendable<E, M, L> {
   constructor(path: string) {
     super(
       new WebSocket(
