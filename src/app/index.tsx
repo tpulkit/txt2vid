@@ -80,15 +80,28 @@ const App = () => {
     } else setRoom(null);
   }, [roomID]);
   useEffect(() => {
-    if (room) {
+    if (room && asr && stream) {
       const cb = room.on('peer', peer => {
+        if (!room._tmpRemote) asr.start();
         const peerVid = new PeerVideo(peer);
         peerVid.on('start', () => peerContainer.current!.appendChild(peerVid.canvas));
         peerVid.on('end', () => peerContainer.current!.removeChild(peerVid.canvas));
+        peer.on('connect', () => {
+          peer.sendVoiceID(voiceID);
+          peer.sendVideo(stream);
+          asr.on('speech', speech => peer.sendSpeech(speech));
+          asr.on('correction', speech => peer.sendSpeech(speech));
+        });
+        // in prod, do this at some point to realize bandwidth savings
+        // setTimeout(() => {
+        //   for (const track of stream.getTracks()) {
+        //     track.stop();
+        //   }
+        // }, 5000);
       });
       return () => room.off('peer', cb);
     }
-  }, [room]);
+  }, [room, asr, stream]);
   return (
     <ThemeProvider options={theme}>
       <RMWCProvider>

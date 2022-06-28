@@ -128,7 +128,7 @@ export default class RTCConnection<
         conn.addEventListener('datachannel', (ev) => resolve(ev.channel));
       } else {
         const chl = conn.createDataChannel('__DEFAULT_RTC_CHANNEL__');
-        chl.addEventListener('open', () => resolve(chl));
+        resolve(chl);
       }
     }).then((channel) => new RTCConnection<EC, MC>(conn, channel));
     return Object.assign(prom, {

@@ -13,40 +13,53 @@ const TARGET_FPS = 12;
 
 export class PeerVideo extends EventEmitter<PeerVideoEvents> {
   private voiceID?: string;
-  private driver: HTMLVideoElement;
-  private spareDriver: HTMLVideoElement;
   private lastSpeech = Promise.resolve();
   private ctx: CanvasRenderingContext2D;
   private faceTracker!: FaceTracker;
   private reverse: boolean;
+  private frames!: ImageData[];
+  private currentTime!: number;
+  private driverTime!: number;
+  private driverCtx: CanvasRenderingContext2D;
   private lastTimestamp!: number;
+  private fps!: number;
   private paused: boolean;
   readonly canvas: HTMLCanvasElement;
   constructor(peer: Peer) {
     super();
-    this.driver = document.createElement('video');
-    this.spareDriver = document.createElement('video');
+    const driver = document.createElement('video');
     this.canvas = document.createElement('canvas');
     this.ctx = this.canvas.getContext('2d')!;
-    this.driver.addEventListener('resize', () => {
-      this.canvas.width = this.driver.videoWidth;
-      this.canvas.height = this.driver.videoHeight;
+    const driverCanvas = document.createElement('canvas');
+    this.driverCtx = driverCanvas.getContext('2d')!;
+    driver.addEventListener('resize', () => {
+      this.canvas.width = driverCanvas.width = driver.videoWidth;
+      this.canvas.height = driverCanvas.height = driver.videoHeight;
     });
-    this.reverse = false;
+    // The video initially starts reversed after it is recorded
+    this.reverse = true;
     peer.on('voiceID', id => this.voiceID = id);
     peer.on('connect', evt => this.emit('start', evt));
     peer.on('video', vid => {
-      this.driver.srcObject = vid;
-      const mr = new MediaRecorder(vid);
+      driver.srcObject = vid;
+      driver.play();
+      this.fps = vid.getVideoTracks()[0].getSettings().frameRate || TARGET_FPS;
+      // TODO: why does this break everything
+      // const initDisplayInterval = setInterval(() => {
+      //   this.ctx.drawImage(driver, 0, 0);
+      // }, 1 / this.fps);
+      // driver.addEventListener('pause', () => clearInterval(initDisplayInterval));
+      const mr = new MediaRecorder(vid, { mimeType: 'video/webm' });
       const chunks: Blob[] = [];
       mr.addEventListener('dataavailable', evt => chunks.push(evt.data));
       mr.addEventListener('stop', async () => {
-        console.log('recording stopped');
         const blob = new Blob(chunks, { type: mr.mimeType });
         const url = URL.createObjectURL(blob);
-        this.driver.srcObject = null;
-        this.driver.src = this.spareDriver.src = url;
-        this.faceTracker = await FaceTracker.create(this.spareDriver);
+        const ct = driver.currentTime;
+        driver.pause();
+        driver.srcObject = null;
+        driver.src = url;
+        this.faceTracker = await FaceTracker.create(driverCanvas);
         peer.on('speech', speech => {
           if (!this.voiceID) throw new TypeError('no voice ID for speech');
           const ttsProm = makeTTS(speech, this.voiceID);
@@ -55,33 +68,59 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
             await this.speak(tts);
           });
         });
-        this.lastTimestamp = performance.now();
-        this.driver.addEventListener('loadedmetadata', () => requestAnimationFrame(ts => this.runLoop(ts)));
+        driver.addEventListener('canplay', () => {
+          this.frames = [];
+          const genFrame = (time: number) => {
+            let ot = driver.currentTime;
+            driver.addEventListener('seeked', () => {
+              if (time != 0 && driver.currentTime == ot) {
+                this.driverTime = driver.duration;
+                this.currentTime = ct;
+                this.lastTimestamp = performance.now();
+                this.runLoop(this.lastTimestamp);
+                return;
+              }
+              this.driverCtx.drawImage(driver, 0, 0);
+              this.frames.push(this.driverCtx.getImageData(0, 0, driverCanvas.width, driverCanvas.height));
+              genFrame(time + 1 / this.fps);
+            }, { once: true });
+            driver.currentTime = time;
+          }
+          genFrame(0);
+        }, { once: true });
       });
+      // dev hack
+      setTimeout(() => {
+        mr.stop();
+      }, 5000);
+      mr.start();
     });
     peer.on('disconnect', evt => {
-      if (this.driver.src) URL.revokeObjectURL(this.driver.src);
-      this.driver.src = this.spareDriver.src = '';
+      if (driver.src) URL.revokeObjectURL(driver.src);
+      driver.src = '';
       this.emit('end', evt);
     });
     this.paused = false;
   }
   private flipDriverTime(time: number): number {
-    if (time > this.driver.duration) return this.flipDriverTime(2 * this.driver.duration - time);
+    if (time > this.driverTime) return this.flipDriverTime(2 * this.driverTime - time);
     if (time < 0) return this.flipDriverTime(-time);
     return time;
   }
+  private getData(time: number) {
+    return this.frames[Math.min(Math.max(Math.floor(time * this.fps), 0), this.frames.length - 1)];
+  }
   private runLoop(timeStamp: number) {
-    this.driver.addEventListener('seeked', () => {
-      if (this.reverse ? this.driver.currentTime <= 0 : this.driver.currentTime >= this.driver.duration) {
-        this.reverse = !this.reverse;
-      }
-      if (!this.paused) this.ctx.drawImage(this.driver, 0, 0);
-      requestAnimationFrame(ts => this.runLoop(ts));
-    }, { once: true });
     const delta = (timeStamp - this.lastTimestamp) / 1000;
-    this.driver.currentTime += (this.reverse ? -delta : delta);
+    this.currentTime = this.currentTime + (this.reverse ? -delta : delta);
+    const flippedTime = this.flipDriverTime(this.currentTime);
+    if (this.currentTime != flippedTime) {
+      this.currentTime = flippedTime;
+      this.reverse = !this.reverse;
+    }
+    if (!this.paused) this.ctx.putImageData(this.getData(this.currentTime), 0, 0);
     this.lastTimestamp = timeStamp;
+    requestAnimationFrame(ts => this.runLoop(ts));
   }
   private async speak(tts: HTMLAudioElement) {
     const actx = new AudioContext({ sampleRate: SAMPLE_RATE });
@@ -95,7 +134,7 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
     src.connect(reemphasis);
     reemphasis.connect(analyser);
 
-    let predTime = 0.07;
+    let predTime = 0.08;
     delay.delayTime.value = 0.1 + predTime;
 
     src.connect(delay);
@@ -103,9 +142,6 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
 
     const specPerFrame = 1 / TARGET_FPS / (0.2 / SPECTROGRAM_FRAMES);
     let bufs: Float32Array[] = [];
-    this.paused = true;
-    const tmpCnv = document.createElement('canvas');
-    const tmpCtx = tmpCnv.getContext('2d')!;
     return new Promise<void>(resolve => {
       const interval = setInterval(async () => {
         const buf = new Float32Array(analyser.frequencyBinCount);
@@ -113,21 +149,18 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
         bufs.push(buf);
         if (bufs.length == SPECTROGRAM_FRAMES) {
           const spectrogram = bufs.slice();
-          this.spareDriver.currentTime = this.flipDriverTime(this.driver.currentTime + predTime);
-          this.spareDriver.addEventListener('seeked', () => {
-            const face = this.faceTracker.find();
-            if (face) {
-              tmpCnv.width = this.canvas.width;
-              tmpCnv.height = this.canvas.height;
-              tmpCtx.drawImage(this.spareDriver, 0, 0);
-              const bg = tmpCtx.getImageData(0, 0, tmpCnv.width, tmpCnv.height);
-              const img = this.faceTracker.extract(face, IMG_SIZE);
-              genFrames([{ img, spectrogram }]).then(([result]) => {
-                this.ctx.putImageData(bg, 0, 0);
-                this.faceTracker.plaster(face, result, this.ctx);
-              });
-            }
-          }, { once: true });
+          const targetTime = this.flipDriverTime(this.currentTime + (this.reverse ? -predTime : predTime));
+          const frame = this.getData(targetTime);
+          this.driverCtx.putImageData(frame, 0, 0);
+          const face = this.faceTracker.find();
+          if (face) {
+            const img = this.faceTracker.extract(face, IMG_SIZE);
+            genFrames([{ img, spectrogram }]).then(([result]) => {
+              this.paused = true;
+              this.ctx.putImageData(frame, 0, 0);
+              this.faceTracker.plaster(face, result, this.ctx);
+            });
+          }
           bufs = bufs.slice(Math.ceil(specPerFrame));
         }
       }, 200 / SPECTROGRAM_FRAMES);

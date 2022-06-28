@@ -368,6 +368,6 @@ export async function genFrames(input: FrameInput[]) {
     mel: melBatch,
     vid: imgBatch
   });
-  console.log(performance.now() - ts);
+  console.log('frame prediction took:', performance.now() - ts, 'ms');
   return toOutputImgs(result.gen, input.length);
 }

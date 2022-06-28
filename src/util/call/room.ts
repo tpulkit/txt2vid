@@ -60,6 +60,7 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
     this.conn.sendMediaStream(stream);
   }
   sendSpeech(speech: string) {
+    console.log('sending speech', JSON.stringify(speech));
     this.conn.send('speech', speech);
   }
 }
