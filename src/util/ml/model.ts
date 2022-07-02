@@ -1,6 +1,6 @@
 // This file has many comments to clarify how the ONNX model is actually run.
 // This import creates a modelURL variable that contains a URL pointing to the converted ONNX model file
-import modelURL from 'url:../../assets/wav2lip_gan.onnx';
+const modelURL = new URL('../../assets/wav2lip_gan.onnx', import.meta.url);
 
 // These imports create variables that reference URLs to the WebAssembly runtimes necessary to efficiently
 // run the model. WebAssembly is an instruction set like x86 or ARM, but with instructions that can be
@@ -41,29 +41,46 @@ declare let OffscreenCanvas: {
   new (width: number, height: number): HTMLCanvasElement;
 };
 
-const makeWebGLExecutor = () => {
-  const numWorkers = Math.min(navigator.hardwareConcurrency, 4);
+const onnxProm = process.env.NODE_ENV == 'production'
+  ? fetch(modelURL).then(res => res.arrayBuffer())
+  : (async () => {
+    modelURL.search = '';
+    const cache = await caches.open('dev');
+    let res = await cache.match(modelURL);
+    if (!res) {
+      res = await fetch(modelURL);
+      await cache.put(modelURL, res.clone());
+    }
+    return res.arrayBuffer();
+  })();
+
+const makeThreadedExecutor = (type: 'webgl' | 'wasm', numWorkers: number) => {
   type WorkerTensors = Record<string, { data: Tensor['data']; dims: number[] }>;
   type Listeners = Record<number, (data: WorkerTensors) => void>;
+  type WorkerMessage = { id: number; data: WorkerTensors; };
   const workers: {
-    send: (msg: unknown) => void;
+    send: (msg: WorkerMessage) => void;
     listeners: Listeners;
   }[] = [];
-  const bufProm = fetch(modelURL).then((res) => res.arrayBuffer());
   for (let i = 0; i < numWorkers; ++i) {
     const worker = new Worker(new URL('./wgl-proxy.ts', import.meta.url), {
       type: 'module'
     });
-    const listeners: Listeners = [];
+    const listeners: Listeners = {};
     worker.onmessage = (evt) => {
       listeners[evt.data.id](evt.data.data);
       delete listeners[evt.data.id];
     };
-    let sentLast = bufProm.then((buf) => worker.postMessage(buf));
+    let sentLast = onnxProm.then((buf) => worker.postMessage([type, buf, env.wasm.wasmPaths]));
     workers.push({
       send(msg) {
         sentLast = sentLast.then(() => {
-          worker.postMessage(msg);
+          let bufs: Transferable[] = [];
+          for (const input in msg.data) {
+            const buf = msg.data[input].data;
+            if (ArrayBuffer.isView(buf)) bufs.push(buf.buffer);
+          }
+          worker.postMessage(msg, bufs);
         });
       },
       listeners
@@ -84,6 +101,7 @@ const makeWebGLExecutor = () => {
         (a, b) =>
           Object.keys(a.listeners).length - Object.keys(b.listeners).length
       )[0];
+      target.listeners[id] = () => { throw new TypeError('early call'); }
       return new Promise<Record<string, Tensor>>((resolve) => {
         target.listeners[id] = (tensors) => {
           const output: Record<string, Tensor> = {};
@@ -98,24 +116,28 @@ const makeWebGLExecutor = () => {
   };
 };
 
-const makeWASMExecutor = () => {
-  const modelProm = InferenceSession.create(modelURL, {
-    executionProviders: ['wasm']
-  });
+const makeLocalExecutor = (type: 'webgl' | 'wasm') => {
+  const modelProm = onnxProm.then(buf => InferenceSession.create(buf, {
+    executionProviders: [type],
+    graphOptimizationLevel: 'all'
+  }));
+  let lastExec = Promise.resolve({} as Record<string, Tensor>);
   return {
-    warmUp: 0,
+    warmUp: 1,
     execute: async (input: Record<string, Tensor>) => {
-      const model = await modelProm;
-      const outputs = await model.run(input);
-      return outputs;
+      return lastExec = lastExec.then(async () => {
+        const model = await modelProm;
+        const outputs = await model.run(input);
+        return outputs;
+      });
     }
   };
-};
+}
 
 const executor =
   typeof OffscreenCanvas != 'undefined'
-    ? makeWebGLExecutor()
-    : makeWASMExecutor();
+    ? makeThreadedExecutor('webgl', 2)
+    : makeLocalExecutor('wasm');
 
 // The rest of this file is preprocessing logic that was used in the original Wav2Lip repo and therefore
 // had to be reimplemented in JavaScript. I couldn't use any pre-existing libraries for most of this
@@ -209,7 +231,6 @@ const toMelScale = (spectrum: Float32Array) => {
     const scaled = 1 - 2 * Math.min(Math.max(db / MIN_DB, 0), 1);
     melScale[i] = scaled * MAX_ABS;
   }
-  // console.log(melScale);
   return melScale;
 };
 
@@ -314,25 +335,35 @@ const batch = (tensors: Tensor[]) => {
   return new Tensor(buf, [tensors.length, ...base.dims]);
 };
 
-if (executor.warmUp) {
-  const inputs = {
-    mel: new Tensor(new Float32Array(N_MELS * SPECTROGRAM_FRAMES), [
-      1,
-      1,
-      N_MELS,
-      SPECTROGRAM_FRAMES
-    ]),
-    vid: new Tensor(new Float32Array(6 * IMG_SIZE * IMG_SIZE), [
-      1,
-      6,
-      IMG_SIZE,
-      IMG_SIZE
-    ])
-  };
-  for (let i = 0; i < executor.warmUp; ++i) {
-    executor.execute(inputs);
-  }
+const makeSampleInput = () => ({
+  mel: new Tensor(new Float32Array(N_MELS * SPECTROGRAM_FRAMES), [1, 1, N_MELS, SPECTROGRAM_FRAMES]),
+  vid: new Tensor(new Float32Array(6 * IMG_SIZE * IMG_SIZE), [1, 6, IMG_SIZE, IMG_SIZE])
+});
+
+let profileWait = Promise.resolve();
+
+for (let i = 0; i < executor.warmUp; ++i) {
+  const ret = executor.execute(makeSampleInput());
+  profileWait = profileWait.then(async () => { await ret; });
 }
+
+const profiles: number[] = [];
+
+for (let i = 0; i < Math.ceil(navigator.hardwareConcurrency / 4); ++i) {
+  profileWait = profileWait.then(async () => {
+    const ts = performance.now();
+    await executor.execute(makeSampleInput());
+    profiles.push(performance.now() - ts);
+  });
+}
+
+export const expectedTime = async () => {
+  await profileWait;
+  const avgMS = profiles.reduce((a, b) => a + b) / profiles.length;
+  return avgMS;
+};
+
+export const init = profileWait;
 
 export type FrameInput = { spectrogram: Float32Array[]; img: ImageData };
 

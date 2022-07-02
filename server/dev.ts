@@ -25,6 +25,15 @@ app.listen(PORT, () => {
   console.log('Listening on http://localhost:4200');
 });
 
+let prebundle = Promise.resolve();
+
+if (!process.env.WEBSITE) {
+  prebundle = ngrok.connect(PORT).then(result => {
+    process.env.WEBSITE = result;
+    console.log('Publicly hosted at', result);
+  });
+}
+
 const bundler = new Parcel({
   entries: path.resolve(__dirname, '..', 'src', 'index.html'),
   defaultConfig: '@parcel/config-default',
@@ -32,10 +41,4 @@ const bundler = new Parcel({
   hmrOptions: { port: BUNDLER_PORT },
   additionalReporters: [{ packageName: '@parcel/reporter-cli', resolveFrom: __dirname }]
 });
-bundler.watch();
-
-if (!process.env.WEBSITE) {
-  ngrok.connect(PORT).then(result => {
-    process.env.WEBSITE = result;
-  });
-}
+prebundle.then(() => bundler.watch());

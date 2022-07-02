@@ -77,9 +77,10 @@ export class FaceTracker {
     const y = fy - h / 2;
     return { x, y, w, h };
   }
-  extract(face: Face, size: number, cnv?: HTMLCanvasElement): ImageData {
+  extract(face: Face, size: number, bg?: ImageData): ImageData {
     const { x, y, w, h } = this.getDims(face);
-    this.ctx.drawImage(cnv || this.cnv, x, y, w, h, 0, 0, size, size);
+    if (bg) this.ctx.putImageData(bg, 0, 0);
+    this.ctx.drawImage(this.cnv, x, y, w, h, 0, 0, size, size);
     return this.ctx.getImageData(0, 0, size, size);
   }
   plaster(face: Face, img: ImageData, ctx: CanvasRenderingContext2D) {

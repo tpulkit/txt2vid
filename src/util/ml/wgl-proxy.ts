@@ -1,4 +1,6 @@
-import { InferenceSession, Tensor, env } from 'onnxruntime-web';
+import { InferenceSession, Tensor, env, Env } from 'onnxruntime-web';
+env.webgl.pack = true;
+env.webgl.async = true;
 
 const worker = (self as unknown) as {
   addEventListener: (
@@ -14,13 +16,16 @@ type WorkerTensor = { data: Tensor['data']; dims: number[] };
 
 worker.addEventListener('message', async (evt) => {
   if (!modelProm) {
-    modelProm = InferenceSession.create(evt.data as ArrayBuffer, {
-      executionProviders: ['webgl']
+    const [type, buf, wasmPaths] = evt.data as [string, ArrayBuffer, Env.WebAssemblyFlags['wasmPaths']];
+    env.wasm.wasmPaths = wasmPaths;
+    modelProm = InferenceSession.create(buf, {
+      executionProviders: [type]
     });
   } else {
     const { id, data } = evt.data as {
       id: number;
       data: Record<string, WorkerTensor>;
+      env: Partial<Env>;
     };
     const model = await modelProm;
     const inputs: Record<string, Tensor> = {};
