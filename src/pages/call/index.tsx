@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, createRef } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { ThemeProvider, RMWCProvider, TextField, DialogQueue } from 'rmwc';
 import '@rmwc/textfield/styles';
 import '@rmwc/checkbox/styles';
@@ -10,19 +11,29 @@ import {
   PeerVideo,
   Room,
   STTEngine,
-  Peer
+  Peer,
+  mlInit
 } from '../../util';
 
-const un = Math.random().toString(36).slice(2);
+type PeerEntry = {
+  peer: Peer;
+  ref: React.RefObject<HTMLCanvasElement>;
+  vid?: PeerVideo;
+};
+
 const Call = () => {
   const [voiceID, setVoiceID] = useGlobalState('voiceID');
-  const [roomID, setRoomID] = useState('');
-  const [asr, setASR] = useState<STTEngine | null>(null)
+  const [username] = useGlobalState('username');
+  const [id, setID] = useState(username);
+  const { roomID } = useParams();
+  const [ready, setReady] = useState(false);
+  const [searchParams] = useSearchParams();
   const [room, setRoom] = useState<Room | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const vidRef = useRef<HTMLVideoElement>(null);
-  const peerContainer = useRef<HTMLDivElement>(null);
-  const peers = useRef<Peer[]>([]);
+  const [peers, setPeers] = useState<PeerEntry[]>([]);
+  const asr = useMemo(() => new STTEngine(), []);
+  const selfView = useRef<HTMLVideoElement>(null);
+  
   // Ask for voice ID if necessary
   useEffect(() => {
     if (!voiceID) {
@@ -36,11 +47,14 @@ const Call = () => {
         setVoiceID(res);
       })
     }
-  }, [voiceID]);
-  // Create ASR
-  useEffect(() => {
-    setASR(new STTEngine());
   }, []);
+
+  useEffect(() => {
+    mlInit.then(() => {
+      setReady(true);
+    });
+  }, []);
+
   useEffect(() => {
     navigator.mediaDevices
       .getUserMedia({
@@ -55,72 +69,92 @@ const Call = () => {
           width: { ideal: 1920 }
         }
       })
-      .then(async (stream) => {
-        vidRef.current!.srcObject = stream;
-        vidRef.current!.muted = true;
-        vidRef.current!.play();
+      .then(stream => {
+        selfView.current!.srcObject = stream;
+        selfView.current!.muted = true;
+        selfView.current!.play();
         setStream(stream);
       });
   }, []);
+
   useEffect(() => {
-    if (roomID) {
-      const room = new Room(roomID, un);
+    if (roomID && stream && voiceID && ready) {
+      const room = new Room(roomID, username, searchParams.get('pw') ?? undefined);
+      setPeers([]);
       setRoom(room);
       return () => room.disconnect();
     } else setRoom(null);
-  }, [roomID]);
+  }, [roomID, stream, voiceID, ready]);
+
   useEffect(() => {
-    if (room && asr && stream) {
+    if (room) {
       const cb = room.on('peer', peer => {
-        peers.current.push(peer);
-        // if (!room._tmpRemote) asr.start();
-        if (room._tmpRemote) {
-          const peerVid = new PeerVideo(peer);
-          peerVid.on('start', () => peerContainer.current!.appendChild(peerVid.canvas));
-          peerVid.on('end', () => peerContainer.current!.removeChild(peerVid.canvas));
-        }
+        setID(room.senderID!);
         peer.on('connect', () => {
-          peer.sendVoiceID(voiceID);
-          peer.sendVideo(stream);
-          asr.on('speech', speech => peer.sendSpeech(speech));
-          asr.on('correction', speech => peer.sendSpeech(speech));
+          setPeers(peers => [...peers, { peer, ref: createRef() }]);
         });
-        // in prod, do this at some point to realize bandwidth savings
-        // setTimeout(() => {
-        //   for (const track of stream.getTracks()) {
-        //     track.stop();
-        //   }
-        // }, 5000);
       });
       return () => room.off('peer', cb);
     }
-  }, [room, asr, stream]);
+  }, [room]);
+
+  useEffect(() => {
+    if (!peers.length) asr.stop();
+    const cleanups: (() => void)[] = [];
+    for (const entry of peers) {
+      const scb = asr.on('speech', speech => entry.peer.sendSpeech(speech));
+      const ccb = asr.on('correction', speech => entry.peer.sendSpeech(speech));
+      const dcb = entry.peer.on('disconnect', () => {
+        setPeers(peers => peers.filter(e => e != entry));
+      });
+
+      cleanups.push(() => {
+        asr.off('speech', scb);
+        asr.off('correction', ccb);
+        entry.peer.off('disconnect', dcb);
+      });
+
+      if (!entry.vid) {
+        asr.start();
+        entry.peer.sendVoiceID(voiceID);
+        const close = entry.peer.sendVideo(stream!);
+        // Amount of time doesn't matter - can also be as long as possible
+        setTimeout(close, 5000);
+
+        // dev hack
+        if (room!._tmpRemote) asr.stop();
+        else { entry.vid = PeerVideo.prototype; continue; }
+        
+        entry.vid = new PeerVideo(entry.peer, entry.ref.current!);
+      }
+    }
+    return () => {
+      for (const cleanup of cleanups) cleanup();
+    }
+  }, [peers, asr]);
   return (
     <>
       <TextField
-        placeholder="Room ID"
-        onKeyDown={(ev) => {
-          if (ev.key == 'Enter') {
-            setRoomID(ev.currentTarget.value);
-            ev.preventDefault();
-            ev.currentTarget.value = '';
-          }
-        }}
-      />
-      <TextField
-        textarea
         placeholder="Custom text prompt"
         onKeyDown={(ev) => {
           if (ev.key == 'Enter' && !ev.shiftKey) {
-            for (const peer of peers.current) {
+            for (const { peer } of peers) {
               peer.sendSpeech(ev.currentTarget.value);
             }
             ev.currentTarget.value = '';
           }
         }}
       />
-      <video ref={vidRef} style={{display: 'none'}} />
-      <div ref={peerContainer} />
+      <video ref={selfView} style={{display: 'none'}} />
+      <div>Your ID is {id}</div>
+      <div>
+        {peers.map(({ peer, ref }) =>
+          <div key={peer.id}>
+            <canvas ref={ref} />
+            <div>Peer ID is {peer.id}</div>
+          </div>
+        )}
+      </div>
     </>
   );
 };

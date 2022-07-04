@@ -29,7 +29,7 @@ interface RoomEvents {
 export interface Peer extends EventEmitter<PeerEvents> {
   id: string;
   sendVoiceID(id: string): void;
-  sendVideo(stream: MediaStream): void;
+  sendVideo(stream: MediaStream): () => void;
   sendSpeech(speech: string): void;
 }
 
@@ -57,7 +57,7 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
     this.conn.send('id', id);
   }
   sendVideo(stream: MediaStream) {
-    this.conn.sendMediaStream(stream);
+    return this.conn.sendMediaStream(stream);
   }
   sendSpeech(speech: string) {
     console.log('sending speech', JSON.stringify(speech));
@@ -66,7 +66,7 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
 }
 
 export class Room extends EventEmitter<RoomEvents> {
-  name?: string;
+  senderID?: string;
   _tmpRemote?: boolean;
   private conns: Record<string, P2P<P2PEvents>>;
   private signal: Sendable<SignalingConnectionMessages>;
@@ -77,17 +77,16 @@ export class Room extends EventEmitter<RoomEvents> {
     );
     this.conns = {};
     const peerConnect = async (peer: string, remote: boolean) => {
-      this.conns[peer] = await P2P.init<P2PEvents>(
-        this.signal.sub(peer),
-        remote
-      );
+      const peerSignal = this.signal.sub<SignalingConnectionEvents>(peer);
+      this.conns[peer] = await P2P.init<P2PEvents>(peerSignal, remote);
+      this.conns[peer].on('disconnect', () => peerSignal.disconnect());
       this.emit('peer', new RoomPeer(this.conns[peer], peer));
     };
     this.signal.on('message', (evt) => {
       switch (evt.type) {
         case 'welcome':
-          const [ownName, ...others] = evt.msg;
-          this.name = ownName;
+          const [ownID, ...others] = evt.msg;
+          this.senderID = ownID;
           this._tmpRemote = false;
           for (const other of others) {
             this._tmpRemote = true;

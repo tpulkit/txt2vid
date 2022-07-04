@@ -6,8 +6,7 @@
   "author": "Arjun Barrett",
   "license": "MIT",
   "scripts": {
-    "start": "NODE_ENV=development tsnd -T -P tsconfig.server.json --exit-child server/dev.ts",
-    "poststart": "kill $(lsof -t -i:4200)",
+    "start": "tsnd -T -P tsconfig.server.json --exit-child server/dev.ts",
     "build": "parcel build src/index.html && tsc --project tsconfig.server.json"
   },
   "devDependencies": {

@@ -43,32 +43,33 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
             break;
           }
         }
-        this.emit('correction', readyMsg.slice(stripFront.length));
+        this.emit('correction', readyMsg.slice(stripFront.length).trim());
       } else {
         readyMsg = readyMsg.slice(stripFront.length);
         let send = '';
         if (finalizedUpTo) {
           send = readyMsg.slice(0, finalizedUpTo);
-          stripFront += send;
         } else if (readyMsg.length > CHAR_FILL_TARGET) {
           for (let i = CHAR_SEND; i > 0; --i) {
             if (readyMsg[i] == ' ') {
               send = readyMsg.slice(0, i);
-              stripFront += send;
               break;
             }
           }
         }
-        if (send) this.emit('speech', send);
+        stripFront += send;
+        if (send) this.emit('speech', send.trim());
       }
     });
     this.sr.addEventListener('end', () => {
+      console.log('restarting asr');
       this.preResults = this.latestResults.slice();
       if (this.started) this.sr.start();
     });
   }
   start() {
     if (!this.started) {
+      console.log('starting asr');
       this.started = true;
       this.preResults = [];
       this.sr.start();
@@ -76,6 +77,7 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
   }
   stop() {
     if (this.started) {
+      console.log('stopping asr');
       this.started = false;
       this.sr.stop();
     }

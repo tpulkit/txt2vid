@@ -54,7 +54,13 @@ const onnxProm = process.env.NODE_ENV == 'production'
     return res.arrayBuffer();
   })();
 
-const makeThreadedExecutor = (type: 'webgl' | 'wasm', numWorkers: number) => {
+type Executor = {
+  warmUp: number;
+  busy(): boolean;
+  execute(input: Record<string, Tensor>): Promise<Record<string, Tensor>>;
+};
+
+const makeThreadedExecutor = (type: 'webgl' | 'wasm', numWorkers: number): Executor => {
   type WorkerTensors = Record<string, { data: Tensor['data']; dims: number[] }>;
   type Listeners = Record<number, (data: WorkerTensors) => void>;
   type WorkerMessage = { id: number; data: WorkerTensors; };
@@ -88,6 +94,9 @@ const makeThreadedExecutor = (type: 'webgl' | 'wasm', numWorkers: number) => {
   }
   return {
     warmUp: numWorkers,
+    busy() {
+      return workers.every(w => Object.keys(w.listeners).length > 0);
+    },
     execute: (input: Record<string, Tensor>) => {
       const tensors: WorkerTensors = {};
       for (const name in input) {
@@ -116,28 +125,52 @@ const makeThreadedExecutor = (type: 'webgl' | 'wasm', numWorkers: number) => {
   };
 };
 
-const makeLocalExecutor = (type: 'webgl' | 'wasm') => {
+const makeLocalExecutor = (type: 'webgl' | 'wasm'): Executor => {
   const modelProm = onnxProm.then(buf => InferenceSession.create(buf, {
     executionProviders: [type],
     graphOptimizationLevel: 'all'
   }));
   let lastExec = Promise.resolve({} as Record<string, Tensor>);
+  let busy = false;
   return {
     warmUp: 1,
+    busy() {
+      return busy;
+    },
     execute: async (input: Record<string, Tensor>) => {
       return lastExec = lastExec.then(async () => {
+        busy = true;
         const model = await modelProm;
         const outputs = await model.run(input);
+        busy = false;
         return outputs;
       });
     }
   };
 }
 
-const executor =
-  typeof OffscreenCanvas != 'undefined'
-    ? makeThreadedExecutor('webgl', 2)
-    : makeLocalExecutor('wasm');
+const makeMultiExecutor = (executors: Executor[]): Executor => {
+  const warmUps: Executor[] = [];
+  for (const executor of executors) {
+    for (let i = 0; i < executor.warmUp; ++i) {
+      warmUps.push(executor);
+    }
+  }
+  return {
+    warmUp: warmUps.length,
+    busy() {
+      return executors.every(e => e.busy());
+    },
+    execute: (input: Record<string, Tensor>) => {
+      const executor = warmUps.shift() || executors.find(e => !e.busy()) || executors[0];
+      return executor.execute(input);
+    }
+  };
+};
+
+let executor = typeof OffscreenCanvas == 'undefined'
+  ? makeLocalExecutor('wasm')
+  : makeThreadedExecutor('webgl', 1);
 
 // The rest of this file is preprocessing logic that was used in the original Wav2Lip repo and therefore
 // had to be reimplemented in JavaScript. I couldn't use any pre-existing libraries for most of this

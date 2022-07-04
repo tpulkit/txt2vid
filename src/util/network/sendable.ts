@@ -20,7 +20,7 @@ export default class Sendable<
   private controllers: ReadableStreamDefaultController<Uint8Array>[] = [];
   private controllerID = 0;
   private children: Record<string, Connection<unknown>> = {};
-  protected closed = 0;
+  protected closed = false;
   private childrenControllers: Record<
     string,
     ReadableStreamDefaultController<Uint8Array>[]
@@ -187,20 +187,16 @@ export default class Sendable<
     if (this.closed) throw new Error('connection closed');
     return this.sendStream(msg, this.controllerID++);
   }
-  protected dc() {
-    if (!this.closed) return;
-    for (const _ in this.children) {
-      return;
+  disconnect() {
+    this.closed = true;
+    for (const child in this.children) {
+      this.children[child].disconnect();
     }
-    this.closed = 2;
     this.connection.close();
   }
-  disconnect() {
-    this.closed = 1;
-    this.dc();
-  }
   sub<EC, MC = EC>(id: string): Connection<EC, MC> {
-    if (this.closed == 2) throw new Error('connection closed');
+    console.log('sub', id)
+    if (this.closed) throw new Error('connection closed');
     if (this.children[id]) throw new Error('ID exists');
     if (id == '') throw new Error('null ID');
     if (id.length > 255) throw new Error('ID too long');
@@ -247,7 +243,6 @@ export default class Sendable<
       this.emit('disconnect', undefined);
       delete this.parent.children[this.pfx];
       delete this.controllerID;
-      this.parent.dc();
     }
   };
 }

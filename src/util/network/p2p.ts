@@ -127,7 +127,7 @@ export default class RTCConnection<
       if (remote) {
         conn.addEventListener('datachannel', (ev) => resolve(ev.channel));
       } else {
-        const chl = conn.createDataChannel('__DEFAULT_RTC_CHANNEL__');
+        const chl = conn.createDataChannel('default');
         resolve(chl);
       }
     }).then((channel) => new RTCConnection<EC, MC>(conn, channel));
@@ -140,9 +140,15 @@ export default class RTCConnection<
     });
   }
   sendMediaStream(stream: MediaStream) {
+    const senders: RTCRtpSender[] = [];
     for (const track of stream.getTracks()) {
-      this.baseConnection.addTrack(track, stream);
+      senders.push(this.baseConnection.addTrack(track, stream));
     }
+    return () => {
+      for (const sender of senders) {
+        this.baseConnection.removeTrack(sender);
+      }
+    };
   }
   sub<EC, MC = EC>(
     name: string,
@@ -152,7 +158,7 @@ export default class RTCConnection<
       (this['children'][name] as RTCConnection<EC, MC>) ||
       new RTCConnection.ChildRTC(
         this,
-        this.baseConnection.createDataChannel(name, opts)
+        this.baseConnection.createDataChannel('child-' + name, opts)
       )
     );
   }
@@ -169,7 +175,6 @@ export default class RTCConnection<
       channel.addEventListener('open', () => this.emit('connect', undefined));
       channel.addEventListener('error', console.error);
       channel.addEventListener('close', () => {
-        this.emit('disconnect', undefined);
         this.disconnect();
       });
       this.name = channel.label;
@@ -178,7 +183,6 @@ export default class RTCConnection<
     disconnect() {
       delete this.parent['children'][this.name];
       this.emit('disconnect', undefined);
-      this.parent['dc']();
     }
   };
 }

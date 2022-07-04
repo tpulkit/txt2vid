@@ -41,4 +41,7 @@ const bundler = new Parcel({
   hmrOptions: { port: BUNDLER_PORT },
   additionalReporters: [{ packageName: '@parcel/reporter-cli', resolveFrom: __dirname }]
 });
-prebundle.then(() => bundler.watch());
+
+prebundle.then(async () => {
+  await bundler.watch();
+});

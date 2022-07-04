@@ -16,8 +16,7 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/">
-              {/* <Route index element={<Home />} /> */}
-              <Route index element={<Call />} />
+              <Route index element={<Home />} />
               <Route path="call">
                 <Route index element={<StartCall />} />
                 <Route path=":roomID" element={<Call />} />
