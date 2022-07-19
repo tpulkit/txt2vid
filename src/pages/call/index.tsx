@@ -12,7 +12,8 @@ import {
   Room,
   STTEngine,
   Peer,
-  mlInit
+  mlInit,
+  alert
 } from '../../util';
 
 type PeerEntry = {
@@ -115,15 +116,11 @@ const Call = () => {
       });
 
       if (!entry.vid) {
-        asr.start();
+        if (process.env.NODE_ENV == 'production') asr.start();
         entry.peer.sendVoiceID(voiceID);
         const close = entry.peer.sendVideo(stream!);
         // Amount of time doesn't matter - can also be as long as possible
         setTimeout(close, 5000);
-
-        // dev hack
-        if (room!._tmpRemote) asr.stop();
-        else { entry.vid = PeerVideo.prototype; continue; }
         
         entry.vid = new PeerVideo(entry.peer, entry.ref.current!);
       }
@@ -145,12 +142,12 @@ const Call = () => {
           }
         }}
       />
-      <video ref={selfView} style={{display: 'none'}} />
+      <video ref={selfView} />
       <div>Your ID is {id}</div>
       <div>
         {peers.map(({ peer, ref }) =>
           <div key={peer.id}>
-            <canvas ref={ref} />
+            <canvas ref={ref} style={{ width: '100%' }} />
             <div>Peer ID is {peer.id}</div>
           </div>
         )}

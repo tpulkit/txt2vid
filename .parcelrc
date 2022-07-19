@@ -3,6 +3,9 @@
     "@parcel/config-default",
     "parcel-config-pwa-manifest"
   ],
+  "transformers": {
+    "*.svg": ["...", "@parcel/transformer-svg-react"]
+  },
   "compressors": {
     "*.{html,css,js,wasm,pico}": ["...", "@parcel/compressor-gzip", "@parcel/compressor-brotli"]
   }

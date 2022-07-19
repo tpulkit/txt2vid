@@ -1,6 +1,6 @@
 // This file has many comments to clarify how the ONNX model is actually run.
 // This import creates a modelURL variable that contains a URL pointing to the converted ONNX model file
-const modelURL = new URL('../../assets/wav2lip_gan.onnx', import.meta.url);
+const modelURL = new URL('../../assets/wav2lip.onnx', import.meta.url);
 
 // These imports create variables that reference URLs to the WebAssembly runtimes necessary to efficiently
 // run the model. WebAssembly is an instruction set like x86 or ARM, but with instructions that can be
@@ -168,7 +168,7 @@ const makeMultiExecutor = (executors: Executor[]): Executor => {
   };
 };
 
-let executor = typeof OffscreenCanvas == 'undefined'
+let executor = typeof OffscreenCanvas == 'undefined' || navigator.hardwareConcurrency < 16
   ? makeLocalExecutor('wasm')
   : makeThreadedExecutor('webgl', 1);
 

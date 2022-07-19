@@ -78,7 +78,7 @@ export default class Sendable<
           }
         }
       } else {
-        const nli = dat.slice(0, 257).indexOf('\n');
+        const nli = dat.slice(0, 257).indexOf('\0');
         const pfx = dat.slice(0, nli);
         const raw = dat.slice(nli + 1);
         if (raw[0] == 'r') {
@@ -108,7 +108,7 @@ export default class Sendable<
     });
   }
   private sendJSON(msg: Record<string, unknown>, pfx = '') {
-    this.connection.send(pfx + '\n' + JSON.stringify(msg));
+    this.connection.send(pfx + '\0' + JSON.stringify(msg));
   }
   send<K extends keyof M>(type: K, msg: M[K]) {
     if (this.closed) throw new Error('connection closed');
@@ -181,7 +181,7 @@ export default class Sendable<
       }
     }
     // EOF marker
-    this.connection.send(pfx + '\nr' + String.fromCharCode(id & 255));
+    this.connection.send(pfx + '\0r' + String.fromCharCode(id & 255));
   }
   sendRaw(msg: ReadableStream<Uint8Array>) {
     if (this.closed) throw new Error('connection closed');
@@ -200,7 +200,7 @@ export default class Sendable<
     if (this.children[id]) throw new Error('ID exists');
     if (id == '') throw new Error('null ID');
     if (id.length > 255) throw new Error('ID too long');
-    if (id.indexOf('\n') != -1) throw new Error('ID includes newline');
+    if (id.indexOf('\0') != -1) throw new Error('ID includes null character');
     const idBin = strToU8(id);
     if (idBin.length > 255) throw new Error('ID too long');
     return new Sendable.Child<E, M, EC, MC>(this, id, idBin);

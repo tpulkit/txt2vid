@@ -67,7 +67,6 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
 
 export class Room extends EventEmitter<RoomEvents> {
   senderID?: string;
-  _tmpRemote?: boolean;
   private conns: Record<string, P2P<P2PEvents>>;
   private signal: Sendable<SignalingConnectionMessages>;
   constructor(id: string, name: string, pw?: string) {
@@ -87,9 +86,7 @@ export class Room extends EventEmitter<RoomEvents> {
         case 'welcome':
           const [ownID, ...others] = evt.msg;
           this.senderID = ownID;
-          this._tmpRemote = false;
           for (const other of others) {
-            this._tmpRemote = true;
             peerConnect(other, true);
           }
           break;

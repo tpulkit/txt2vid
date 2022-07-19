@@ -11,10 +11,12 @@ const { app } = expressWS(express(), undefined, {
   }
 });
 
+type WebSocketWithIP = WebSocket & {
+  ip: string;
+};
+
 interface Room {
-  conns: Record<string, WebSocket & {
-    ip: string;
-  }>;
+  conns: Record<string, WebSocketWithIP>;
   pw?: string;
 }
 
@@ -66,7 +68,8 @@ app.post('/tts_callback', (req, res) => {
 });
 
 app.ws('/room/:id', (_ws, req) => {
-  const ws = Object.assign(_ws, { ip: req.ip });
+  const ws = _ws as WebSocketWithIP;
+  ws.ip = req.ip;
   const { id } = req.params;
   const { pw, un } = req.query as Record<string, string | undefined>;
   let room = rooms[id];
@@ -81,14 +84,14 @@ app.ws('/room/:id', (_ws, req) => {
       }
     }
   }
-  const json = (dat: unknown) => '\n' + JSON.stringify(dat);
+  const json = (dat: unknown) => '\0' + JSON.stringify(dat);
   const error = (msg: string) => json({
     type: 'error',
     msg
   });
   if (!uid || uid == '') autoError = 'null ID';
   else if (uid.length > 255) autoError = 'ID too long';
-  else if (uid.indexOf('\n') != -1) autoError = 'ID includes newline';
+  else if (uid.indexOf('\0') != -1) autoError = 'ID includes null character';
   else if (Buffer.from(uid).length > 255) autoError = 'Username too long';
   if (autoError) return ws.send(error(autoError), () => ws.close());
   if (!room) {
@@ -117,7 +120,7 @@ app.ws('/room/:id', (_ws, req) => {
     if (isBinary) send(error('Invalid type'));
     else {
       const dat = src.toString();
-      const nli = dat.slice(0, 257).indexOf('\n');
+      const nli = dat.slice(0, 257).indexOf('\0');
       const msg = dat.slice(nli);
       if (nli == -1) send(error('No target delimiter found'));
       else if (nli) {

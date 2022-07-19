@@ -24,12 +24,10 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
   private fps!: number;
   private paused: boolean;
   private ended: boolean;
-  readonly canvas: HTMLCanvasElement;
-  constructor(peer: Peer, canvas?: HTMLCanvasElement) {
+  constructor(peer: Peer, public readonly canvas = document.createElement('canvas')) {
     super();
     const driver = document.createElement('video');
     this.ended = false;
-    this.canvas = canvas || document.createElement('canvas');
     this.ctx = this.canvas.getContext('2d')!;
     driver.addEventListener('resize', () => {
       this.canvas.width = driver.videoWidth;

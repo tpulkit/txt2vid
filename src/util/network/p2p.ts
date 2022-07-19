@@ -32,10 +32,24 @@ export default class RTCConnection<
   private static readonly CONFIG: RTCConfiguration = {
     iceServers: [
       {
-        // Revisit this later
-        urls: ['stun:stun.l.google.com:19302']
-      }
-    ]
+        urls: "stun:openrelay.metered.ca:80",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:80",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443?transport=tcp",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+    ],
   };
   maxChunkSize = 65535;
   suggestedChunkSize = 65535;
@@ -87,13 +101,9 @@ export default class RTCConnection<
             }
             break;
           case 'sdp':
-            ignoreCurrentOffer =
-              evt.msg.type == 'offer' &&
-              !remote &&
-              (makingOffer ||
-                (conn.signalingState != 'stable' &&
-                  (conn.signalingState != 'have-local-offer' ||
-                    !settingRemoteAnswer)));
+            const ready = !makingOffer && (conn.signalingState == 'stable' || settingRemoteAnswer);
+            const collision = evt.msg.type == 'offer' && !ready;
+            ignoreCurrentOffer = !remote && collision;
             if (ignoreCurrentOffer) return;
             settingRemoteAnswer = evt.msg.type == 'answer';
             await conn.setRemoteDescription(evt.msg);
