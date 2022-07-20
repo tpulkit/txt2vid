@@ -82,7 +82,6 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
           }
         }
         requestAnimationFrame(initDisplay);
-        // setTimeout(() => initDisplay(performance.now()), frametime);
       };
       initDisplay(ti);
     });
@@ -178,8 +177,8 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
       return new Promise<void>(resolve => {
         let spec = 0;
         // bg not strictly necessary (should already be there from driver) but helpful in case of desync
-        let futureFrames: Promise<{ time: number; reverse: boolean; bg: ImageData; img: ImageData; face: Face; }>[] = [];
-        const interval = setInterval(async () => {
+        let frameGens: (() => Promise<{ time: number; reverse: boolean; bg: ImageData; img: ImageData; face: Face; }>)[] = [];
+        const interval = setInterval(() => {
           const buf = new Float32Array(analyser.frequencyBinCount);
           analyser.getFloatFrequencyData(buf);
           bufs.push(buf);
@@ -190,13 +189,13 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
             const reverse = (flipCount + +this.reverse) % 2 == 1;
             const { frame: bg, face } = this.getData(time);
             const img = this.faceTracker.extract(face, IMG_SIZE, bg);
-            futureFrames.push(genFrames([{ img, spectrogram }]).then(([img]) => ({
-              img,
+            frameGens.push(async () => ({
+              img: (await genFrames([{ img, spectrogram }]))[0],
               bg,
               face,
               time,
               reverse
-            })));
+            }));
             const sliceCount = Math.round(spec + specPerFrame) - Math.round(spec);
             spec += specPerFrame;
             bufs = bufs.slice(sliceCount);
@@ -210,9 +209,10 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
           src.connect(delay);
           delay.connect(actx.destination);
           clearInterval(interval);
-          const frames = await Promise.all(futureFrames);
+          const frames = await Promise.all(frameGens.map(f => f()));
           let ti!: number;
           let frametime = 0
+          let frame = 0;
           let lastFail = false;
           const run = (ts: number) => {
             if (!this.paused) {
@@ -228,25 +228,26 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
             }
             if (this.paused) {
               const shift = (ts - ti) / 1000;
-              if (shift > frametime) {
-                const { img, bg, face, time, reverse } = frames.shift()!;
+              if (shift >= frametime) {
+                const { img, bg, face, time, reverse } = frames[frame++];
                 this.ctx.putImageData(bg, 0, 0);
                 this.faceTracker.plaster(face, img, this.ctx);
-                if (!frames.length) {
+                if (frame == frames.length) {
                   requestAnimationFrame(() => {
                     this.paused = false;
                     resolve();
                   });
                   return;
                 }
+                const { time: nextTime, reverse: nextReverse } = frames[frame];
                 ti = ts;
                 frametime = reverse
-                  ? frames[0].reverse
-                    ? time - frames[0].time
-                    : time + frames[0].time
-                  : frames[0].reverse
-                    ? 2 * this.driverTime - frames[0].time - time
-                    : frames[0].time - time;
+                  ? nextReverse
+                    ? time - nextTime
+                    : time + nextTime
+                  : nextReverse
+                    ? 2 * this.driverTime - nextTime - time
+                    : nextTime - time;
               }
             }
             requestAnimationFrame(run);

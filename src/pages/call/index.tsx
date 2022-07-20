@@ -79,7 +79,7 @@ const Call = () => {
   }, []);
 
   useEffect(() => {
-    if (roomID /*&& stream*/ && voiceID && ready) {
+    if (roomID && stream && voiceID && ready) {
       const room = new Room(roomID, username, searchParams.get('pw') ?? undefined);
       setPeers([]);
       setRoom(room);
@@ -123,9 +123,9 @@ const Call = () => {
       if (!entry.vid) {
         if (process.env.NODE_ENV == 'production') asr.start();
         entry.peer.sendVoiceID(voiceID);
-        // const close = entry.peer.sendVideo(stream!);
-        // // Amount of time doesn't matter - can also be as long as possible
-        // setTimeout(close, 5000);
+        const close = entry.peer.sendVideo(stream!);
+        // Amount of time doesn't matter - can also be as long as possible
+        setTimeout(close, 5000);
         
         entry.vid = new PeerVideo(entry.peer, entry.ref.current!);
       }
