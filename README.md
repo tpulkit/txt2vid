@@ -97,9 +97,3 @@ src/util/ml/model.ts
 ```
 
 This file contains the preprocessing and postprocessing logic for the Wav2Lip model, and exports a `genFrames` function that accepts spectrogram and video-frame input to generate a lipsynced video-frame output. I added many comments to this file to try to explain the code.
-
-Also, make a `.env` file in the top directory (i.e. alongside this README) and write:
-
-```sh
-RESEMBLE_API_KEY=<your token here>
-```

@@ -13,7 +13,7 @@ const MIN_FPS = 8;
 const TARGET_FPS = 30;
 
 export class PeerVideo extends EventEmitter<PeerVideoEvents> {
-  private voiceID?: string;
+  private ttsID?: string;
   private ctx: CanvasRenderingContext2D;
   private reverse: boolean;
   private data: { frame: ImageData; face: Face; }[];
@@ -36,7 +36,7 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
     // start in reverse
     this.reverse = true;
     this.data = [];
-    peer.on('voiceID', id => this.voiceID = id);
+    peer.on('ttsID', id => this.ttsID = id);
     peer.on('connect', evt => this.emit('start', evt));
     peer.on('video', async vid => {
       driver.srcObject = vid;
@@ -61,8 +61,8 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
           }
           this.runLoop(this.lastTimestamp);
           peer.on('speech', speech => {
-            if (!this.voiceID) throw new TypeError('no voice ID for speech');
-            const ttsProm = makeTTS(speech, this.voiceID);
+            if (!this.ttsID) throw new TypeError('no TTS ID for speech');
+            const ttsProm = makeTTS(speech, this.ttsID);
             lastSpeech = lastSpeech.then(async () => {
               const tts = await ttsProm;
               await this.speak(tts);

@@ -15,6 +15,7 @@ import {
   mlInit,
   alert
 } from '../../util';
+import PeerDisplay from './peer-display';
 
 type PeerEntry = {
   peer: Peer;
@@ -23,7 +24,7 @@ type PeerEntry = {
 };
 
 const Call = () => {
-  const [voiceID, setVoiceID] = useGlobalState('voiceID');
+  const [ttsID, setTTSID] = useGlobalState('ttsID');
   const [username] = useGlobalState('username');
   const [id, setID] = useState(username);
   const { roomID } = useParams();
@@ -37,7 +38,7 @@ const Call = () => {
   
   // Ask for voice ID if necessary
   useEffect(() => {
-    if (!voiceID) {
+    if (!ttsID) {
       prompt({
         title: 'Enter your Resemble voice ID',
         body: <div><span style={{ fontWeight: 'bold' }}>Format:</span> project_id:voice_id</div>,
@@ -45,7 +46,7 @@ const Call = () => {
         acceptLabel: 'Submit',
         cancelLabel: null
       }).then((res: string) => {
-        setVoiceID(res);
+        setTTSID(res);
       })
     }
   }, []);
@@ -79,13 +80,13 @@ const Call = () => {
   }, []);
 
   useEffect(() => {
-    if (roomID && stream && voiceID && ready) {
+    if (roomID && stream && ttsID && ready) {
       const room = new Room(roomID, username, searchParams.get('pw') ?? undefined);
       setPeers([]);
       setRoom(room);
       return () => room.disconnect();
     } else setRoom(null);
-  }, [roomID, stream, voiceID, ready]);
+  }, [roomID, stream, ttsID, ready]);
 
   useEffect(() => {
     if (room) {
@@ -122,7 +123,7 @@ const Call = () => {
 
       if (!entry.vid) {
         if (process.env.NODE_ENV == 'production') asr.start();
-        entry.peer.sendVoiceID(voiceID);
+        entry.peer.sendTTSID(ttsID);
         const close = entry.peer.sendVideo(stream!);
         // Amount of time doesn't matter - can also be as long as possible
         setTimeout(close, 5000);
@@ -161,12 +162,7 @@ const Call = () => {
       <video ref={selfView} />
       <div>Your ID is {id}</div>
       <div>
-        {peers.map(({ peer, ref }) =>
-          <div key={peer.id}>
-            <canvas ref={ref} style={{ width: '100%' }} />
-            <div>Peer ID is {peer.id}</div>
-          </div>
-        )}
+        {peers.map(({ peer, ref }) => <PeerDisplay ref={ref} />)}
       </div>
     </>
   );

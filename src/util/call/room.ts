@@ -15,7 +15,7 @@ interface P2PEvents {
 
 interface PeerEvents {
   connect: void;
-  voiceID: string;
+  ttsID: string;
   chat: string;
   video: MediaStream;
   speech: string;
@@ -30,7 +30,7 @@ interface RoomEvents {
 
 export interface Peer extends EventEmitter<PeerEvents> {
   id: string;
-  sendVoiceID(id: string): void;
+  sendTTSID(id: string): void;
   sendVideo(stream: MediaStream): () => void;
   sendSpeech(speech: string): void;
   sendChat(chat: string): void;
@@ -50,7 +50,7 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
           this.emit('chat', evt.msg);
           break;
         case 'id':
-          this.emit('voiceID', evt.msg);
+          this.emit('ttsID', evt.msg);
           break;
         case 'error':
           this.emit('error', new Error(`Peer ${id} error: ${evt.msg}`));
@@ -59,7 +59,7 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
     });
     conn.on('stream', stream => this.emit('video', stream));
   }
-  sendVoiceID(id: string) {
+  sendTTSID(id: string) {
     this.conn.send('id', id);
   }
   sendVideo(stream: MediaStream) {

@@ -2,7 +2,7 @@ import express from 'express';
 import expressWS from 'express-ws';
 import WebSocket from 'ws';
 import fetch from 'node-fetch';
-import { randomBytes } from 'crypto';
+import { decrypt, key, createNonce } from './util/crypto';
 import 'dotenv/config';
 
 const { app } = expressWS(express(), undefined, {
@@ -22,25 +22,34 @@ interface Room {
 
 const rooms: Record<string, Room> = {};
 const nonceCB: Record<string, (url: string) => void> = {};
-const cache: Record<string, string> = {};
+const cache: { [K in string]?: Promise<string> } = {};
 
 app.use(express.json());
+
+app.get('/pubkey', (req, res) => {
+  res.send(key);
+});
+
 app.get('/tts', async (req, res) => {
   const { id, text } = req.query;
   if (typeof id != 'string' || typeof text != 'string') {
     return res.status(400).end();
   }
-  const cacheID = text.toLowerCase().replace(/'"/g, '') + ':' + id;
-  if (cache[cacheID]) return res.redirect(cache[cacheID]);
-  const [projectID, voiceID] = id.split(':');
-  const nonce = randomBytes(8).toString('hex');
-  nonceCB[nonce] = url => {
-    res.redirect(cache[cacheID] = url);
-  }
+  const cacheID = text.toLowerCase().replace(/'"\?.\!/g, '') + ':' + id;
+  if (cache[cacheID]) return cache[cacheID]!.then(url => res.redirect(url));
+  const nonce = createNonce();
+  cache[cacheID] = new Promise(resolve => {
+    nonceCB[nonce] = url => {
+      resolve(url);
+      res.redirect(url);
+    }
+  });
+  const [projectID, voiceID, encodedApiKey] = id.split('.');
+  const apiKey = (await decrypt(Buffer.from(encodedApiKey, 'base64url'))).toString('latin1');
   const response = await fetch(`https://app.resemble.ai/api/v2/projects/${projectID}/clips`, {
     method: 'POST',
     headers: {
-      Authorization: `Token token=${process.env.RESEMBLE_API_KEY}`,
+      Authorization: `Token token=${apiKey}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -55,7 +64,7 @@ app.get('/tts', async (req, res) => {
   if (!result.success) {
     return res.status(400).end();
   }
-})
+});
 
 app.post('/tts_callback', (req, res) => {
   const { src } = req.query;
