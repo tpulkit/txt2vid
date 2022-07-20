@@ -79,7 +79,7 @@ const Call = () => {
   }, []);
 
   useEffect(() => {
-    if (roomID && stream && voiceID && ready) {
+    if (roomID /*&& stream*/ && voiceID && ready) {
       const room = new Room(roomID, username, searchParams.get('pw') ?? undefined);
       setPeers([]);
       setRoom(room);
@@ -105,6 +105,10 @@ const Call = () => {
     for (const entry of peers) {
       const scb = asr.on('speech', speech => entry.peer.sendSpeech(speech));
       const ccb = asr.on('correction', speech => entry.peer.sendSpeech(speech));
+      const chatCb = entry.peer.on('chat', chat => {
+        // TODO
+        console.log('received chat', chat);
+      });
       const dcb = entry.peer.on('disconnect', () => {
         setPeers(peers => peers.filter(e => e != entry));
       });
@@ -113,14 +117,15 @@ const Call = () => {
         asr.off('speech', scb);
         asr.off('correction', ccb);
         entry.peer.off('disconnect', dcb);
+        entry.peer.off('chat', chatCb);
       });
 
       if (!entry.vid) {
         if (process.env.NODE_ENV == 'production') asr.start();
         entry.peer.sendVoiceID(voiceID);
-        const close = entry.peer.sendVideo(stream!);
-        // Amount of time doesn't matter - can also be as long as possible
-        setTimeout(close, 5000);
+        // const close = entry.peer.sendVideo(stream!);
+        // // Amount of time doesn't matter - can also be as long as possible
+        // setTimeout(close, 5000);
         
         entry.vid = new PeerVideo(entry.peer, entry.ref.current!);
       }
@@ -137,6 +142,17 @@ const Call = () => {
           if (ev.key == 'Enter' && !ev.shiftKey) {
             for (const { peer } of peers) {
               peer.sendSpeech(ev.currentTarget.value);
+            }
+            ev.currentTarget.value = '';
+          }
+        }}
+      />
+      <TextField
+        placeholder="Send global chat message"
+        onKeyDown={(ev) => {
+          if (ev.key == 'Enter' && !ev.shiftKey) {
+            for (const { peer } of peers) {
+              peer.sendChat(ev.currentTarget.value);
             }
             ev.currentTarget.value = '';
           }

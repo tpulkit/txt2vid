@@ -10,11 +10,13 @@ interface SignalingConnectionMessages {
 interface P2PEvents {
   speech: string;
   id: string;
+  chat: string;
 }
 
 interface PeerEvents {
   connect: void;
   voiceID: string;
+  chat: string;
   video: MediaStream;
   speech: string;
   disconnect: void;
@@ -31,6 +33,7 @@ export interface Peer extends EventEmitter<PeerEvents> {
   sendVoiceID(id: string): void;
   sendVideo(stream: MediaStream): () => void;
   sendSpeech(speech: string): void;
+  sendChat(chat: string): void;
 }
 
 class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
@@ -42,6 +45,9 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
       switch (evt.type) {
         case 'speech':
           this.emit('speech', evt.msg);
+          break;
+        case 'chat':
+          this.emit('chat', evt.msg);
           break;
         case 'id':
           this.emit('voiceID', evt.msg);
@@ -58,6 +64,9 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
   }
   sendVideo(stream: MediaStream) {
     return this.conn.sendMediaStream(stream);
+  }
+  sendChat(chat: string) {
+    this.conn.send('chat', chat);
   }
   sendSpeech(speech: string) {
     console.log('sending speech', JSON.stringify(speech));
