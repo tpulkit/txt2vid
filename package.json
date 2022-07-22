@@ -41,7 +41,7 @@
     "react-dom": "^16.14.0",
     "react-router-dom": "^6.3.0",
     "react-universal-state": "^1.3.0",
-    "rmwc": "^8.0.0",
+    "rmwc": "6",
     "web-streams-polyfill": "^3.2.1",
     "webrtc-adapter": "^8.1.1"
   },

@@ -7,3 +7,4 @@ server-dist/
 .env
 .python-version
 yarn-error.log
+server/keys.json

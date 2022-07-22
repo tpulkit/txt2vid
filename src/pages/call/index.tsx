@@ -12,7 +12,6 @@ import {
   Room,
   STTEngine,
   Peer,
-  mlInit,
   alert
 } from '../../util';
 import PeerDisplay from './peer-display';
@@ -28,34 +27,12 @@ const Call = () => {
   const [username] = useGlobalState('username');
   const [id, setID] = useState(username);
   const { roomID } = useParams();
-  const [ready, setReady] = useState(false);
   const [searchParams] = useSearchParams();
   const [room, setRoom] = useState<Room | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<PeerEntry[]>([]);
   const asr = useMemo(() => new STTEngine(), []);
   const selfView = useRef<HTMLVideoElement>(null);
-  
-  // Ask for voice ID if necessary
-  useEffect(() => {
-    if (!ttsID) {
-      prompt({
-        title: 'Enter your Resemble voice ID',
-        body: <div><span style={{ fontWeight: 'bold' }}>Format:</span> project_id:voice_id</div>,
-        preventOutsideDismiss: true,
-        acceptLabel: 'Submit',
-        cancelLabel: null
-      }).then((res: string) => {
-        setTTSID(res);
-      })
-    }
-  }, []);
-
-  useEffect(() => {
-    mlInit.then(() => {
-      setReady(true);
-    });
-  }, []);
 
   useEffect(() => {
     navigator.mediaDevices
@@ -80,13 +57,13 @@ const Call = () => {
   }, []);
 
   useEffect(() => {
-    if (roomID && stream && ttsID && ready) {
+    if (roomID && stream && ttsID) {
       const room = new Room(roomID, username, searchParams.get('pw') ?? undefined);
       setPeers([]);
       setRoom(room);
       return () => room.disconnect();
     } else setRoom(null);
-  }, [roomID, stream, ttsID, ready]);
+  }, [roomID, stream, ttsID]);
 
   useEffect(() => {
     if (room) {
@@ -162,7 +139,7 @@ const Call = () => {
       <video ref={selfView} />
       <div>Your ID is {id}</div>
       <div>
-        {peers.map(({ peer, ref }) => <PeerDisplay ref={ref} />)}
+        {peers.map(({ peer, ref }) => <PeerDisplay ref={ref} key={peer.id} />)}
       </div>
     </>
   );

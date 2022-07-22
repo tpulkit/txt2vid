@@ -1,13 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings } from '../../components';
+import { useGlobalState } from '../../util';
 
 const Home = () => {
-  const [open, setOpen] = useState(true);
   return <>
     <h1>Home</h1>
     <Link to="call/test">Join test room</Link>
-    <Settings open={open} onClose={() => setOpen(false)} />
   </>
 };
 

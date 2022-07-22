@@ -1,6 +1,5 @@
 import React, { forwardRef } from 'react';
 import { Typography } from 'rmwc';
-import { Peer } from '../../util';
 
 const PeerDisplay = forwardRef<HTMLCanvasElement, Omit<React.HTMLAttributes<HTMLDivElement>, 'children'>>(({ style, ...props }, ref) => {
   return (

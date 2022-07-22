@@ -27,6 +27,7 @@ import simdThreadWASM from 'url:onnxruntime-web/dist/ort-wasm-simd-threaded.wasm
 // This imports the classes necessary to prepare our inputs and run our model from onnxruntime-web,
 // the official CPU-only ONNX-standardized neural network runner.
 import { InferenceSession, Tensor, env } from 'onnxruntime-web';
+import { DataLoader } from '../data';
 
 // This just tells ONNX where to find the WebAssembly binaries needed to run the model
 env.wasm.wasmPaths = {
@@ -41,18 +42,7 @@ declare let OffscreenCanvas: {
   new (width: number, height: number): HTMLCanvasElement;
 };
 
-const onnxProm = process.env.NODE_ENV == 'production'
-  ? fetch(modelURL).then(res => res.arrayBuffer())
-  : (async () => {
-    modelURL.search = '';
-    const cache = await caches.open('dev');
-    let res = await cache.match(modelURL);
-    if (!res) {
-      res = await fetch(modelURL);
-      await cache.put(modelURL, res.clone());
-    }
-    return res.arrayBuffer();
-  })();
+export const loading = new DataLoader(modelURL, 'ml');
 
 type Executor = {
   warmUp: number;
@@ -77,7 +67,7 @@ const makeThreadedExecutor = (type: 'webgl' | 'wasm', numWorkers: number): Execu
       listeners[evt.data.id](evt.data.data);
       delete listeners[evt.data.id];
     };
-    let sentLast = onnxProm.then((buf) => worker.postMessage([type, buf, env.wasm.wasmPaths]));
+    let sentLast = loading.then((buf) => worker.postMessage([type, buf, env.wasm.wasmPaths]));
     workers.push({
       send(msg) {
         sentLast = sentLast.then(() => {
@@ -126,7 +116,7 @@ const makeThreadedExecutor = (type: 'webgl' | 'wasm', numWorkers: number): Execu
 };
 
 const makeLocalExecutor = (type: 'webgl' | 'wasm'): Executor => {
-  const modelProm = onnxProm.then(buf => InferenceSession.create(buf, {
+  const modelProm = loading.then(buf => InferenceSession.create(buf, {
     executionProviders: [type],
     graphOptimizationLevel: 'all'
   }));
@@ -168,7 +158,7 @@ const makeMultiExecutor = (executors: Executor[]): Executor => {
   };
 };
 
-let executor = typeof OffscreenCanvas == 'undefined' || navigator.hardwareConcurrency < 16
+let executor = typeof OffscreenCanvas == 'undefined'
   ? makeLocalExecutor('wasm')
   : makeThreadedExecutor('webgl', 1);
 

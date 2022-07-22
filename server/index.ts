@@ -1,9 +1,10 @@
 import express from 'express';
 import expressWS from 'express-ws';
 import WebSocket from 'ws';
-import fetch from 'node-fetch';
-import { decrypt, key, createNonce } from './util/crypto';
+import { key, createNonce } from './util/crypto';
 import 'dotenv/config';
+import { parseTTSID } from './util/tts-id';
+import { request } from './util/resemble';
 
 const { app } = expressWS(express(), undefined, {
   wsOptions: {
@@ -27,7 +28,7 @@ const cache: { [K in string]?: Promise<string> } = {};
 app.use(express.json());
 
 app.get('/pubkey', (req, res) => {
-  res.send(key);
+  key.then(buf => res.send(buf))
 });
 
 app.get('/tts', async (req, res) => {
@@ -39,31 +40,22 @@ app.get('/tts', async (req, res) => {
   if (cache[cacheID]) return cache[cacheID]!.then(url => res.redirect(url));
   const nonce = createNonce();
   cache[cacheID] = new Promise(resolve => {
-    nonceCB[nonce] = url => {
-      resolve(url);
-      res.redirect(url);
-    }
+    nonceCB[nonce] = resolve;
   });
-  const [projectID, voiceID, encodedApiKey] = id.split('.');
-  const apiKey = (await decrypt(Buffer.from(encodedApiKey, 'base64url'))).toString('latin1');
-  const response = await fetch(`https://app.resemble.ai/api/v2/projects/${projectID}/clips`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Token token=${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      body: text,
-      voice_uuid: voiceID,
-      is_public: false,
-      is_archived: false,
-      callback_uri: `${process.env.WEBSITE}/api/tts_callback?src=${nonce}`
-    })
+  const { projectID, voiceID, apiKey } = await parseTTSID(id);
+  const result = await request(`/projects/${projectID}/clips`, 'POST', apiKey, {
+    body: text,
+    voice_uuid: voiceID,
+    is_public: false,
+    is_archived: false,
+    callback_uri: `${process.env.WEBSITE}/api/tts_callback?src=${encodeURIComponent(nonce)}`
   });
-  const result = await response.json() as { success: boolean };
   if (!result.success) {
+    delete cache[cacheID];
+    delete nonceCB[nonce];
     return res.status(400).end();
   }
+  res.redirect(await cache[cacheID]!);
 });
 
 app.post('/tts_callback', (req, res) => {
