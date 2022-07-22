@@ -5,14 +5,17 @@ import '@rmwc/button/styles';
 import '@rmwc/tabs/styles';
 import '@rmwc/textfield/styles';
 import '@rmwc/dialog/styles';
-import '@rmwc/typography/styles';
+import '@rmwc/icon/styles';
 import '@rmwc/select/styles';
 import '@rmwc/circular-progress/styles';
+import '@rmwc/tooltip/styles';
+import '@rmwc/typography/styles';
 import { lightTheme, darkTheme, dialogs, useGlobalState, mlInit, alert } from '../util';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Home, Call, StartCall } from '../pages';
 import Settings from './settings';
 import Loading from './loading';
+import './index.css';
 
 const App = () => {
   const [loaded, setLoaded] = useState(false);
@@ -37,7 +40,7 @@ const App = () => {
   }, [loaded, ttsID]);
   return (
     <ThemeProvider options={lightTheme}>
-      <RMWCProvider>
+      <RMWCProvider tooltip={{ showArrow: true }}>
         <Portal />
         <DialogQueue dialogs={dialogs} />
         <Settings open={showSettings} onClose={() => setShowSettings(false)} />

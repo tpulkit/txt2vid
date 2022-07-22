@@ -14,7 +14,6 @@
     "@parcel/compressor-gzip": "^2.6.2",
     "@parcel/packager-raw-url": "^2.6.2",
     "@parcel/packager-xml": "^2.6.2",
-    "@parcel/transformer-svg-react": "^2.6.2",
     "@types/dom-speech-recognition": "^0.0.1",
     "@types/express-ws": "^3.0.1",
     "@types/node": "^18.0.0",
@@ -30,7 +29,6 @@
     "typescript": "^4.7.4"
   },
   "dependencies": {
-    "@material-design-icons/svg": "^0.11.4",
     "@parcel/service-worker": "^2.6.2",
     "dotenv": "^16.0.1",
     "express": "^4.18.1",

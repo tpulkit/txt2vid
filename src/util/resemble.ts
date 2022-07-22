@@ -29,7 +29,7 @@ export async function getProjects(apiKey: string, signal?: AbortSignal) {
   let page = 1;
   while (true) {
     const res = await request<{ page: number; num_pages: number; items: { uuid: string; name: string; }[] }>(
-      `/projects?page=${page}&page_size=1000`,'GET', apiKey, signal
+      `/projects?page=${page}&page_size=1000`,'GET', apiKey, null, signal
     );
     if (!res.success) {
       throw new Error(res.message);
@@ -47,7 +47,7 @@ export async function getVoices(apiKey: string, signal?: AbortSignal) {
   let page = 1;
   while (true) {
     const res = await request<{ page: number; num_pages: number; items: { uuid: string; name: string; }[] }>(
-      `/voices?page=${page}&page_size=1000`,'GET', apiKey, signal
+      `/voices?page=${page}&page_size=1000`,'GET', apiKey, null, signal
     );
     if (!res.success) {
       throw new Error(res.message);

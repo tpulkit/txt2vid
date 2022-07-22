@@ -12,3 +12,8 @@ declare module 'bundle-text:*' {
   const bundleText: string;
   export default bundleText;
 }
+
+declare module '*.svg' {
+  const content: () => JSX.Element;
+  export default content;
+}
