@@ -36,6 +36,7 @@ app.get('/tts', async (req, res) => {
   if (typeof id != 'string' || typeof text != 'string') {
     return res.status(400).end();
   }
+  if (!process.env.WEBSITE) return res.status(500).end();
   const cacheID = text.toLowerCase().replace(/'"\?.\!/g, '') + ':' + id;
   if (cache[cacheID]) return cache[cacheID]!.then(url => res.redirect(url));
   const nonce = createNonce();
