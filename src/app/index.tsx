@@ -37,7 +37,9 @@ const App = () => {
     }
   }, [loaded, ttsID]);
   return (
-    <ThemeProvider options={lightTheme}>
+    <ThemeProvider options={darkTheme} theme={['background', 'textPrimaryOnBackground']} style={{
+      minHeight: '100vh'
+    }}>
       <RMWCProvider tooltip={{ showArrow: true }}>
         <DialogQueue dialogs={dialogs} />
         {loaded ? <BrowserRouter>

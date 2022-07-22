@@ -108,6 +108,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         required
         outlined
         onChange={(evt: React.FormEvent<HTMLInputElement>) => setUsername(evt.currentTarget.value)}
+        style={{ width: '100%' }}
       />
       <Checkbox label="Use CPU" checked={useCPU} disabled={typeof OffscreenCanvas == 'undefined'} onChange={(evt: React.FormEvent<HTMLInputElement>) => {
         setUseCPU(evt.currentTarget.checked);
@@ -120,7 +121,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       <Typography use="body1">Execution mode: {(resultType == 'cpu' ? 'CPU' : resultType == 'gpu' ? 'GPU' : 'CPU + GPU (experimental)') + (resultType != mlType ? ' (reload required)' : '')}</Typography>
       <Button
         raised
-        label={`Retune performance${!loadingProfile ? ` (${time <= 1000 / MIN_FPS ? (1000 / time).toFixed(1) + ' FPS' : '8 FPS delayed'})` : ''}`}
+        label={`Benchmark${!loadingProfile ? ` (${time <= 1000 / MIN_FPS ? (1000 / time).toFixed(1) + ' FPS' : `${MIN_FPS} FPS delayed`})` : ''}`}
         disabled={loadingProfile || /\/call\/([^\/]+)$/.test(location.pathname)}
         trailingIcon={loadingProfile ? <CircularProgress /> : undefined}
         onClick={() => {
@@ -130,6 +131,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
             setLoadingProfile(false);
           });
         }}
+        style={{ width: '100%' }}
       />
     </>,
     <>
@@ -140,7 +142,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         outlined
         enhanced
         required
-        value={localAV.cam}
+        value={Object.keys(cams).length ? localAV.cam : ''}
         options={cams}
         onChange={(evt: React.FormEvent<HTMLSelectElement>) => setLocalAV(av => ({ cam: evt.currentTarget.value, mic: av.mic }))}
         style={{ width: '100%' }}
@@ -152,22 +154,25 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         outlined
         enhanced
         required
-        value={localAV.mic}
+        value={Object.keys(mics).length ? localAV.mic : ''}
         options={mics}
         onChange={(evt: React.FormEvent<HTMLSelectElement>) => setLocalAV(av => ({ mic: evt.currentTarget.value, cam: av.cam }))}
         style={{ width: '100%' }}
         rootProps={{ style: { width: '100%' } }}
       />
-      <Button raised label="Request camera permissions" onClick={() => {
+      <Button raised label="Request camera access" onClick={() => {
         setCamState(false);
         navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
           for (const track of stream.getTracks()) track.stop();
           setMics({});
           setCams({});
         }, () => {
-          setCamState('Camera permissions denied. Please update your browser settings.');
+          setCamState('Camera access denied. Please update your browser settings.');
         });
-      }} trailingIcon={camState ? camState === true ? <Theme use="secondary">check_circle</Theme> : <Theme use="error">error_outline</Theme> : <CircularProgress />} />
+      }}
+        trailingIcon={camState ? camState === true ? <Theme use="secondary">check_circle</Theme> : <Theme use="error">error_outline</Theme> : <CircularProgress theme="error" />}
+        style={{ alignSelf: 'center' }}
+      />
     </>,
     <>
       <TextField
@@ -226,9 +231,15 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       <Tab>Audio/Video</Tab>
       <Tab>resemble.ai</Tab>
     </TabBar>
-    {contents.map((el, i) => <DialogContent key={i} style={{ display: menu == i ? 'flex' : 'none', flexDirection: 'column', minHeight: '18rem', minWidth: '36rem', justifyContent: 'space-between', flexWrap: 'wrap', overflow: 'visible' }}>
-      {el}
-    </DialogContent>)}
+    {contents.map((el, i) => (
+      <DialogContent
+        key={i}
+        style={{ display: menu == i ? 'flex' : 'none', flexDirection: 'column', minHeight: '18rem', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', overflow: 'visible' }}
+        theme="onSurface"
+      >
+        {el}
+      </DialogContent>
+    ))}
     <DialogActions>
       <DialogButton action="close" disabled={!initUsername || !ttsID}>Cancel</DialogButton>
       <DialogButton action="accept" isDefaultAction disabled={!username || !projectID || !voiceID || (needAPIKey && !apiKey) || apiKey != infoLoadedKey || !!error}>Save</DialogButton>
