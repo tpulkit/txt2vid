@@ -1,9 +1,9 @@
-import { webcrypto } from 'crypto';
+import { webcrypto, JsonWebKey } from 'crypto';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { readFile, writeFile } from 'fs/promises';
 
-const crypto = (webcrypto as unknown as Crypto);
+const crypto = webcrypto;
 const KEYS_PATH = resolve(__dirname, '..', 'keys.json');
 const keypair = loadKeys();
 

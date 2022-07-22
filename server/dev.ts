@@ -1,4 +1,4 @@
-import api from '.';
+import api from './server';
 import Parcel from '@parcel/core';
 import express from 'express';
 import expressWS from 'express-ws';
