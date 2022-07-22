@@ -1,12 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, DialogButton, DialogProps, TextField, TabBar, Tab, Select, CircularProgress, Icon, Tooltip, Theme, Typography, Button } from 'rmwc';
-import { useGlobalState, createTTSID, getVoices, getProjects } from '../util';
+import { useLocation } from 'react-router-dom';
+import { Dialog, DialogTitle, DialogContent, DialogActions, DialogButton, DialogProps, TextField, TabBar, Tab, Select, CircularProgress, Icon, Tooltip, Theme, Typography, Button, Checkbox } from 'rmwc';
+import { useGlobalState, createTTSID, getVoices, getProjects, MIN_FPS } from '../util';
+import { expectedTime, mlType, rerunProfiles, setMLType } from '../util/ml';
 
+declare let OffscreenCanvas: unknown;
 const Settings = ({ onClose, ...props }: DialogProps) => {
   const [ttsID, setTTSID] = useGlobalState('ttsID');
+  const location = useLocation();
+  const [time, setTime] = useState(0);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [initProjectID = '', initVoiceID = ''] = ttsID.split('.');
   const [{ project: initProjectName, voice: initVoiceName }, setResemble] = useGlobalState('resemble');
   const [av, setAV] = useGlobalState('av');
+  const [useCPU, setUseCPU] = useState(mlType == 'cpu' || mlType == 'hybrid');
+  const [useGPU, setUseGPU] = useState(mlType == 'gpu' || mlType == 'hybrid');
+  const resultType = useCPU ? useGPU ? 'hybrid' : 'cpu' : 'gpu';
   const [localAV, setLocalAV] = useState(av);
   const [projectID, setProjectID] = useState(initProjectID);
   const [voiceID, setVoiceID] = useState(initVoiceID);
@@ -25,6 +34,13 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
   const [camState, setCamState] = useState<boolean | string>(false);
   const abortLast = useRef<AbortController>();
   const needAPIKey = voiceID != initVoiceID || projectID != initProjectID || !initVoiceID || !initProjectID;
+
+  useEffect(() => {
+    expectedTime().then(time => {
+      setLoadingProfile(false);
+      setTime(time);
+    });
+  }, []);
 
   useEffect(() => {
     if (!Object.keys(cams).length || !Object.keys(mics).length) {
@@ -93,6 +109,28 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         outlined
         onChange={(evt: React.FormEvent<HTMLInputElement>) => setUsername(evt.currentTarget.value)}
       />
+      <Checkbox label="Use CPU" checked={useCPU} disabled={typeof OffscreenCanvas == 'undefined'} onChange={(evt: React.FormEvent<HTMLInputElement>) => {
+        setUseCPU(evt.currentTarget.checked);
+        if (!evt.currentTarget.checked) setUseGPU(true);
+      }} />
+      <Checkbox label="Use GPU" checked={useGPU} disabled={typeof OffscreenCanvas == 'undefined'} onChange={(evt: React.FormEvent<HTMLInputElement>) => {
+        setUseGPU(evt.currentTarget.checked);
+        if (!evt.currentTarget.checked) setUseCPU(true);
+      }} />
+      <Typography use="body1">Execution mode: {(resultType == 'cpu' ? 'CPU' : resultType == 'gpu' ? 'GPU' : 'CPU + GPU (experimental)') + (resultType != mlType ? ' (reload required)' : '')}</Typography>
+      <Button
+        raised
+        label={`Retune performance${!loadingProfile ? ` (${time <= 1000 / MIN_FPS ? (1000 / time).toFixed(1) + ' FPS' : '8 FPS delayed'})` : ''}`}
+        disabled={loadingProfile || /\/call\/([^\/]+)$/.test(location.pathname)}
+        trailingIcon={loadingProfile ? <CircularProgress /> : undefined}
+        onClick={() => {
+          setLoadingProfile(true);
+          rerunProfiles().then(newTime => {
+            setTime(newTime);
+            setLoadingProfile(false);
+          });
+        }}
+      />
     </>,
     <>
       {typeof camState == 'string' && <Typography use="body1" style={{ textAlign: 'center' }}>{camState}</Typography>}
@@ -120,7 +158,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         style={{ width: '100%' }}
         rootProps={{ style: { width: '100%' } }}
       />
-      {/* <Button label="Request camera permissions" onClick={() => {
+      <Button raised label="Request camera permissions" onClick={() => {
         setCamState(false);
         navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
           for (const track of stream.getTracks()) track.stop();
@@ -129,7 +167,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         }, () => {
           setCamState('Camera permissions denied. Please update your browser settings.');
         });
-      }} trailingIcon={camState ? camState === true ? <Theme use="secondary">check_circle</Theme> : <Theme use="error">error_outline</Theme> : <CircularProgress />} /> */}
+      }} trailingIcon={camState ? camState === true ? <Theme use="secondary">check_circle</Theme> : <Theme use="error">error_outline</Theme> : <CircularProgress />} />
     </>,
     <>
       <TextField
@@ -178,6 +216,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         setTTSID(await createTTSID(projectID, voiceID, apiKey));
       }
       setGlobalUsername(username);
+      setMLType(resultType);
     }
     onClose?.(evt);
   }} {...props}>
@@ -187,7 +226,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       <Tab>Audio/Video</Tab>
       <Tab>resemble.ai</Tab>
     </TabBar>
-    {contents.map((el, i) => <DialogContent key={i} style={{ display: menu == i ? 'flex' : 'none', flexDirection: 'column', minHeight: '18rem', justifyContent: 'space-between', flexWrap: 'wrap', overflow: 'visible' }}>
+    {contents.map((el, i) => <DialogContent key={i} style={{ display: menu == i ? 'flex' : 'none', flexDirection: 'column', minHeight: '18rem', minWidth: '36rem', justifyContent: 'space-between', flexWrap: 'wrap', overflow: 'visible' }}>
       {el}
     </DialogContent>)}
     <DialogActions>

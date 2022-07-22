@@ -1,14 +1,17 @@
 import React, { forwardRef } from 'react';
 import { Typography } from 'rmwc';
+import { Peer } from '../../util';
 
-const PeerDisplay = forwardRef<HTMLCanvasElement, Omit<React.HTMLAttributes<HTMLDivElement>, 'children'>>(({ style, ...props }, ref) => {
+const PeerDisplay = forwardRef<HTMLCanvasElement, Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> & {
+  peer: Peer;
+}>(({ style, peer, ...props }, ref) => {
   return (
     <div style={{
       ...style,
       position: 'relative'
     }} {...props}>
       <canvas ref={ref} style={{
-
+        height: '50vh'
       }} />
       <div style={{
         position: 'absolute',
@@ -16,9 +19,10 @@ const PeerDisplay = forwardRef<HTMLCanvasElement, Omit<React.HTMLAttributes<HTML
         display: 'flex',
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-end'
+        alignItems: 'flex-end',
+        backgroundColor: 'black'
       }}>
-        <Typography use="body1">idfk</Typography>
+        <Typography use="body1" style={{ color: 'white' }}>ID: {peer.id}</Typography>
       </div>
     </div>
   );

@@ -18,8 +18,13 @@ export class DataLoader extends EventEmitter<LoaderEvents> implements PromiseLik
     const cacheSrc = await caches.open(cache);
     let res = await cacheSrc.match(src);
     if (res) return this.buffer(res);
+    await Promise.all((await cacheSrc.keys()).map(k => cacheSrc.delete(k)));
     const result = await this.longLoad(src);
-    await cacheSrc.put(src, new Response(result));
+    await cacheSrc.put(src, new Response(result, {
+      headers: {
+        'Content-Length': result.byteLength.toString()
+      }
+    }));
     return result;
   }
   private async longLoad(src: string | URL) {

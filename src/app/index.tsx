@@ -7,6 +7,7 @@ import '@rmwc/textfield/styles';
 import '@rmwc/dialog/styles';
 import '@rmwc/icon/styles';
 import '@rmwc/select/styles';
+import '@rmwc/checkbox/styles';
 import '@rmwc/circular-progress/styles';
 import '@rmwc/tooltip/styles';
 import '@rmwc/typography/styles';
@@ -39,8 +40,8 @@ const App = () => {
     <ThemeProvider options={lightTheme}>
       <RMWCProvider tooltip={{ showArrow: true }}>
         <DialogQueue dialogs={dialogs} />
-        <Settings open={showSettings} onClose={() => setShowSettings(false)} />
         {loaded ? <BrowserRouter>
+          <Settings open={showSettings} onClose={() => setShowSettings(false)} />
           <Routes>
             <Route path="/">
               <Route index element={<Home />} />

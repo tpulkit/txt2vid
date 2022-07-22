@@ -42,7 +42,7 @@ declare let OffscreenCanvas: {
   new (width: number, height: number): HTMLCanvasElement;
 };
 
-export const loading = new DataLoader(modelURL, 'ml');
+export const loading = new DataLoader(modelURL, 'wav2lip');
 
 type Executor = {
   warmUp: number;
@@ -139,9 +139,10 @@ const makeLocalExecutor = (type: 'webgl' | 'wasm'): Executor => {
   };
 }
 
-const makeMultiExecutor = (executors: Executor[]): Executor => {
+const makeMultiExecutor = (executors: (Executor | undefined)[]): Executor => {
+  const sources = executors.filter(e => e) as Executor[];
   const warmUps: Executor[] = [];
-  for (const executor of executors) {
+  for (const executor of sources) {
     for (let i = 0; i < executor.warmUp; ++i) {
       warmUps.push(executor);
     }
@@ -149,18 +150,22 @@ const makeMultiExecutor = (executors: Executor[]): Executor => {
   return {
     warmUp: warmUps.length,
     busy() {
-      return executors.every(e => e.busy());
+      return sources.every(e => e.busy());
     },
     execute: (input: Record<string, Tensor>) => {
-      const executor = warmUps.shift() || executors.find(e => !e.busy()) || executors[0];
+      const executor = warmUps.shift() || sources.find(e => !e.busy()) || sources[0];
       return executor.execute(input);
     }
   };
 };
 
-let executor = typeof OffscreenCanvas == 'undefined'
-  ? makeLocalExecutor('wasm')
-  : makeThreadedExecutor('webgl', 1);
+export const mlType = (localStorage.getItem('ml-backend') as 'cpu' | 'gpu' | 'hybrid') || (
+  typeof OffscreenCanvas == 'undefined' ? 'cpu' : 'gpu'
+);
+
+let gpuExec = mlType == 'gpu' || mlType == 'hybrid' ? makeThreadedExecutor('webgl', 1) : undefined;
+let cpuExec = mlType == 'cpu' || mlType == 'hybrid' ? makeLocalExecutor('wasm') : undefined;
+let executor = makeMultiExecutor([gpuExec, cpuExec]);
 
 // The rest of this file is preprocessing logic that was used in the original Wav2Lip repo and therefore
 // had to be reimplemented in JavaScript. I couldn't use any pre-existing libraries for most of this
@@ -370,15 +375,7 @@ for (let i = 0; i < executor.warmUp; ++i) {
   profileWait = profileWait.then(async () => { await ret; });
 }
 
-const profiles: number[] = [];
-
-for (let i = 0; i < Math.ceil(navigator.hardwareConcurrency / 4); ++i) {
-  profileWait = profileWait.then(async () => {
-    const ts = performance.now();
-    await executor.execute(makeSampleInput());
-    profiles.push(performance.now() - ts);
-  });
-}
+let profiles: number[] = JSON.parse(localStorage.getItem('profiles') || '[]');
 
 export const expectedTime = async () => {
   await profileWait;
@@ -386,7 +383,31 @@ export const expectedTime = async () => {
   return avgMS;
 };
 
+export const rerunProfiles = async (reset = true) => {
+  if (reset) profiles = [];
+  for (let i = 0; i < Math.ceil(navigator.hardwareConcurrency / 4); ++i) {
+    profileWait = profileWait.then(async () => {
+      const ts = performance.now();
+      await executor.execute(makeSampleInput());
+      profiles.push(performance.now() - ts);
+    });
+  }
+  const time = await expectedTime();
+  localStorage.setItem('profiles', JSON.stringify(profiles));
+  return time;
+}
+
+if (!profiles.length) rerunProfiles();
+
 export const init = profileWait;
+
+export function setMLType(type: 'cpu' | 'gpu' | 'hybrid') {
+  if (type != mlType) {
+    localStorage.setItem('ml-backend', type);
+    localStorage.setItem('profiles', '[]');
+    location.reload();
+  }
+}
 
 export type FrameInput = { spectrogram: Float32Array[]; img: ImageData };
 

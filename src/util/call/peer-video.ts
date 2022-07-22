@@ -9,7 +9,7 @@ interface PeerVideoEvents {
   end: void;
 };
 
-const MIN_FPS = 8;
+export const MIN_FPS = 8;
 const TARGET_FPS = 30;
 
 export class PeerVideo extends EventEmitter<PeerVideoEvents> {
@@ -86,7 +86,6 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
       initDisplay(ti);
     });
     peer.on('disconnect', evt => {
-      console.log('ending peer video')
       this.ended = true;
       this.emit('end', evt);
     });

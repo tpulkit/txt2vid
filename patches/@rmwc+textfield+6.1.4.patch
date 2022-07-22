@@ -1,5 +1,5 @@
 diff --git a/node_modules/@rmwc/textfield/next/textfield-foundation.js b/node_modules/@rmwc/textfield/next/textfield-foundation.js
-index 7e1a791..0994cca 100644
+index 7e1a791..2d31b0b 100644
 --- a/node_modules/@rmwc/textfield/next/textfield-foundation.js
 +++ b/node_modules/@rmwc/textfield/next/textfield-foundation.js
 @@ -1,5 +1,5 @@
@@ -24,7 +24,7 @@ index 7e1a791..0994cca 100644
 +    useEffect(function() {
 +        if (!init.current) {
 +            queueMicrotask(() => {
-+                if (floatingLabel.current.getWidth() > 0 && props.value) {
++                if (floatingLabel.current && floatingLabel.current.getWidth() > 0 && props.value) {
 +                    foundation.notchOutline(true);
 +                    init.current = true;
 +                    foundation.adapter_.floatLabel(true);
