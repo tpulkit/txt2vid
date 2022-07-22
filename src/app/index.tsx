@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { ThemeProvider, RMWCProvider, DialogQueue, Portal } from 'rmwc';
+import { ThemeProvider, RMWCProvider, DialogQueue } from 'rmwc';
 import '@rmwc/theme/styles';
 import '@rmwc/button/styles';
 import '@rmwc/tabs/styles';
@@ -33,15 +33,11 @@ const App = () => {
       }).then(() => {
         setShowSettings(true);
       });
-    } else if (loaded) {
-      // TEMP
-      setShowSettings(true);
     }
   }, [loaded, ttsID]);
   return (
     <ThemeProvider options={lightTheme}>
       <RMWCProvider tooltip={{ showArrow: true }}>
-        <Portal />
         <DialogQueue dialogs={dialogs} />
         <Settings open={showSettings} onClose={() => setShowSettings(false)} />
         {loaded ? <BrowserRouter>

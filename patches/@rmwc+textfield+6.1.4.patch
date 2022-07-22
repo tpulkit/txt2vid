@@ -1,0 +1,37 @@
+diff --git a/node_modules/@rmwc/textfield/next/textfield-foundation.js b/node_modules/@rmwc/textfield/next/textfield-foundation.js
+index 7e1a791..0994cca 100644
+--- a/node_modules/@rmwc/textfield/next/textfield-foundation.js
++++ b/node_modules/@rmwc/textfield/next/textfield-foundation.js
+@@ -1,5 +1,5 @@
+ import { __assign, __read, __rest } from "tslib";
+-import { useState, useRef, useEffect } from 'react';
++import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+ import { useFoundation } from '@rmwc/base';
+ import { MDCTextFieldFoundation } from '@material/textfield';
+ export var useTextFieldFoundation = function (props) {
+@@ -9,6 +9,7 @@ export var useTextFieldFoundation = function (props) {
+     var _d = __read(useState(false), 2), shakeLabel = _d[0], setShakeLabel = _d[1];
+     var _e = __read(useState(false), 2), floatLabel = _e[0], setFloatlabel = _e[1];
+     var characterCounter = useRef();
++    var init = useRef();
+     var setCharacterCounter = function (api) {
+         return (characterCounter.current = api);
+     };
+@@ -130,6 +131,17 @@ export var useTextFieldFoundation = function (props) {
+             foundation.adapter_.floatLabel(props.floatLabel);
+         }
+     }, [foundation, props.floatLabel]);
++    useEffect(function() {
++        if (!init.current) {
++            queueMicrotask(() => {
++                if (floatingLabel.current.getWidth() > 0 && props.value) {
++                    foundation.notchOutline(true);
++                    init.current = true;
++                    foundation.adapter_.floatLabel(true);
++                }
++            });
++        }
++    });
+     return __assign({ shakeLabel: shakeLabel,
+         floatLabel: floatLabel,
+         notchWidth: notchWidth,

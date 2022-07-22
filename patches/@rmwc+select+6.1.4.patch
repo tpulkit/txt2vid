@@ -1,0 +1,52 @@
+diff --git a/node_modules/@rmwc/select/next/select/foundation.js b/node_modules/@rmwc/select/next/select/foundation.js
+index ef98e8d..46fda51 100644
+--- a/node_modules/@rmwc/select/next/select/foundation.js
++++ b/node_modules/@rmwc/select/next/select/foundation.js
+@@ -10,6 +10,7 @@ export var useSelectFoundation = function (props) {
+     var _e = __read(useState(false), 2), floatLabel = _e[0], setFloatLabel = _e[1];
+     var _f = __read(useState(false), 2), menuOpen = _f[0], setMenuOpen = _f[1];
+     var _g = __read(useState(''), 2), selectedTextContent = _g[0], setSelectedTextContent = _g[1];
++    var init = useRef();
+     var selectedIndex = useRef(-1);
+     var floatingLabel = useRef();
+     var setFloatingLabel = function (api) {
+@@ -326,6 +327,17 @@ export var useSelectFoundation = function (props) {
+         var _a;
+         rootEl.ref && ((_a = menu.current) === null || _a === void 0 ? void 0 : _a.setAnchorElement(rootEl.ref));
+     }, [rootEl.ref]);
++    useEffect(function() {
++        if (!init.current) {
++            queueMicrotask(() => {
++                if (floatingLabel.current.getWidth() > 0  && props.value) {
++                    foundation.notchOutline(true);
++                    init.current = true;
++                    foundation.adapter_.floatLabel(true);
++                }
++            });
++        }
++    });
+     return __assign({ notchWidth: notchWidth,
+         menuOpen: menuOpen,
+         lineRippleActive: lineRippleActive,
+diff --git a/node_modules/@rmwc/select/next/select/index.js b/node_modules/@rmwc/select/next/select/index.js
+index 5757d66..35897d5 100644
+--- a/node_modules/@rmwc/select/next/select/index.js
++++ b/node_modules/@rmwc/select/next/select/index.js
+@@ -30,7 +30,7 @@ var createSelectOptions = function (options) {
+     if (typeof options === 'object') {
+         return Object.keys(options).map(function (value) { return ({
+             value: value,
+-            label: options[value]
++            label: React.createElement('span', { style: { overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' } }, options[value])
+         }); });
+     }
+     // default, just return
+@@ -132,7 +132,7 @@ export var Select = createComponent(function Select(props, ref) {
+                 React.createElement(SelectDropdownArrow, null),
+                 React.createElement(SelectedTextEl, { className: "mdc-select__selected-text", role: "button", "aria-haspopup": "listbox", element: selectedTextEl, onFocus: handleFocus, onBlur: handleBlur, onClick: handleClick, onKeyDown: handleKeydown, 
+                     /** In the case of native selects, we don't want this to be be focusable */
+-                    tabIndex: enhanced ? undefined : -1 }, selectedTextContent || React.createElement(React.Fragment, null, "\u00A0")),
++                    tabIndex: enhanced ? undefined : -1 }, selectedTextContent ? React.createElement('span', { style: { overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' } }, selectedTextContent) : React.createElement(React.Fragment, null, "\u00A0")),
+                 outlined ? (React.createElement(NotchedOutline, { notch: notchWidth }, renderedLabel)) : (React.createElement(React.Fragment, null,
+                     renderedLabel,
+                     React.createElement(LineRipple, { active: lineRippleActive, center: lineRippleCenter }))),

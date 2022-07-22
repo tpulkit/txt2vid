@@ -30,6 +30,7 @@ const defaults = {
     project: '',
     voice: ''
   },
+  av: {mic: '', cam: ''},
   username: 'Guest' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0'),
   showSettings: false
 };

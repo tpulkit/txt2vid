@@ -7,7 +7,8 @@
   "license": "MIT",
   "scripts": {
     "start": "tsnd -T -P tsconfig.server.json --exit-child server/dev.ts",
-    "build": "parcel build src/index.html && tsc --project tsconfig.server.json"
+    "build": "parcel build src/index.html && tsc --project tsconfig.server.json",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@parcel/compressor-brotli": "^2.6.2",
@@ -35,6 +36,8 @@
     "express-ws": "^5.0.2",
     "fflate": "^0.7.3",
     "node-fetch": "^2.6.7",
+    "patch-package": "^6.4.7",
+    "postinstall-postinstall": "^2.1.0",
     "react": "^16.14.0",
     "react-dom": "^16.14.0",
     "react-router-dom": "^6.3.0",

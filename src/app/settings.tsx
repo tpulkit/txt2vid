@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, DialogButton, DialogProps, TextField, TabBar, Tab, Select, CircularProgress, Icon, Tooltip, Theme } from 'rmwc';
+import { Dialog, DialogTitle, DialogContent, DialogActions, DialogButton, DialogProps, TextField, TabBar, Tab, Select, CircularProgress, Icon, Tooltip, Theme, Typography, Button } from 'rmwc';
 import { useGlobalState, createTTSID, getVoices, getProjects } from '../util';
 
 const Settings = ({ onClose, ...props }: DialogProps) => {
   const [ttsID, setTTSID] = useGlobalState('ttsID');
   const [initProjectID = '', initVoiceID = ''] = ttsID.split('.');
   const [{ project: initProjectName, voice: initVoiceName }, setResemble] = useGlobalState('resemble');
+  const [av, setAV] = useGlobalState('av');
+  const [localAV, setLocalAV] = useState(av);
   const [projectID, setProjectID] = useState(initProjectID);
   const [voiceID, setVoiceID] = useState(initVoiceID);
   const [apiKey, setAPIKey] = useState('');
@@ -18,8 +20,38 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
   const [projects, setProjects] = useState<Record<string, string>>({ [initProjectID]: initProjectName });
   const [voices, setVoices] = useState<Record<string, string>>({ [initVoiceID]: initVoiceName });
   const [error, setError] = useState('');
+  const [cams, setCams] = useState<Record<string, string>>({});
+  const [mics, setMics] = useState<Record<string, string>>({});
+  const [camState, setCamState] = useState<boolean | string>(false);
   const abortLast = useRef<AbortController>();
   const needAPIKey = voiceID != initVoiceID || projectID != initProjectID || !initVoiceID || !initProjectID;
+
+  useEffect(() => {
+    if (!Object.keys(cams).length || !Object.keys(mics).length) {
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const newMics: typeof mics = {};
+        const newCams: typeof cams = {};
+        newCams['default'] = 'Same as system';
+        newMics['default'] = 'Same as system';
+        for (const device of devices) {
+          if (device.deviceId) {
+            if (['default', 'communications'].includes(device.deviceId)) continue;
+            if (device.kind == 'audioinput') newMics[device.deviceId] = device.label;
+            if (device.kind == 'videoinput') newCams[device.deviceId] = device.label;
+          }
+        }
+        if (Math.min(Object.keys(newCams).length, Object.keys(newMics).length) > 1) {
+          if (!localAV.cam) setLocalAV(localAV => ({ cam: 'default', mic: localAV.mic }));
+          if (!localAV.mic) setLocalAV(localAV => ({ cam: localAV.cam, mic: 'default' }));
+          setMics(newMics);
+          setCams(newCams);
+          setCamState(true);
+        } else {
+          setCamState("Couldn't find any devices. Have you granted webcam access to the app?");
+        }
+      });
+    }
+  }, [cams, mics]);
 
   useEffect(() => {
     if ((apiKey.length >= 24 || (apiKey.length && !apiKeyFocused)) && apiKey != infoLoadedKey) {
@@ -62,7 +94,43 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         onChange={(evt: React.FormEvent<HTMLInputElement>) => setUsername(evt.currentTarget.value)}
       />
     </>,
-    <></>,
+    <>
+      {typeof camState == 'string' && <Typography use="body1" style={{ textAlign: 'center' }}>{camState}</Typography>}
+      <Select
+        label="Camera"
+        disabled={!Object.keys(cams).length}
+        outlined
+        enhanced
+        required
+        value={localAV.cam}
+        options={cams}
+        onChange={(evt: React.FormEvent<HTMLSelectElement>) => setLocalAV(av => ({ cam: evt.currentTarget.value, mic: av.mic }))}
+        style={{ width: '100%' }}
+        rootProps={{ style: { width: '100%' } }}
+      />
+      <Select
+        label="Microphone"
+        disabled={!Object.keys(mics).length}
+        outlined
+        enhanced
+        required
+        value={localAV.mic}
+        options={mics}
+        onChange={(evt: React.FormEvent<HTMLSelectElement>) => setLocalAV(av => ({ mic: evt.currentTarget.value, cam: av.cam }))}
+        style={{ width: '100%' }}
+        rootProps={{ style: { width: '100%' } }}
+      />
+      {/* <Button label="Request camera permissions" onClick={() => {
+        setCamState(false);
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+          for (const track of stream.getTracks()) track.stop();
+          setMics({});
+          setCams({});
+        }, () => {
+          setCamState('Camera permissions denied. Please update your browser settings.');
+        });
+      }} trailingIcon={camState ? camState === true ? <Theme use="secondary">check_circle</Theme> : <Theme use="error">error_outline</Theme> : <CircularProgress />} /> */}
+    </>,
     <>
       <TextField
         label={needAPIKey ? 'API Key' : 'API Key (optional)'}
@@ -73,11 +141,12 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         onFocus={() => setAPIKeyFocused(true)}
         onBlur={() => setAPIKeyFocused(false)}
         onChange={(evt: React.FormEvent<HTMLInputElement>) => setAPIKey(evt.currentTarget.value)}
-        trailingIcon={loading ? <CircularProgress /> : error ? <Tooltip content={error}><Theme use="error"><Icon icon="error_outline" /></Theme></Tooltip> : infoLoadedKey == apiKey && apiKey.length ? <Theme use="secondary"><Icon icon="check_circle" /></Theme> : undefined}
+        trailingIcon={loading ? <CircularProgress /> : error ? <Tooltip content={error}><Theme use="error">error_outline</Theme></Tooltip> : infoLoadedKey == apiKey && apiKey.length ? <Theme use="secondary">check_circle</Theme> : undefined}
+        style={{ width: '100%' }}
       />
       <Select
         label="Project ID"
-        disabled={Object.keys(projects).length <= 1}
+        disabled={!infoLoadedKey || !Object.keys(projects).length}
         outlined
         enhanced
         required
@@ -85,10 +154,11 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         options={projects}
         onChange={(evt: React.FormEvent<HTMLSelectElement>) => setProjectID(evt.currentTarget.value)}
         style={{ width: '100%' }}
+        rootProps={{ style: { width: '100%' } }}
       />
       <Select
         label="Voice ID"
-        disabled={Object.keys(voices).length <= 1}
+        disabled={!infoLoadedKey || !Object.keys(voices).length}
         outlined
         enhanced
         required
@@ -96,12 +166,14 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         options={voices}
         onChange={(evt: React.FormEvent<HTMLSelectElement>) => setVoiceID(evt.currentTarget.value)}
         style={{ width: '100%' }}
+        rootProps={{ style: { width: '100%' } }}
       />
     </>
   ];
   return <Dialog preventOutsideDismiss onClose={async evt => {
     if (evt.detail.action === 'accept') {
       setResemble({ voice: voices[voiceID], project: projects[projectID] });
+      setAV(localAV);
       if (needAPIKey || apiKey != '') {
         setTTSID(await createTTSID(projectID, voiceID, apiKey));
       }
@@ -115,9 +187,9 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       <Tab>Audio/Video</Tab>
       <Tab>resemble.ai</Tab>
     </TabBar>
-    <DialogContent style={{ display: 'flex', flexDirection: 'column', minHeight: '18rem', justifyContent: 'space-between', flexWrap: 'wrap', overflow: 'visible' }}>
-      {contents[menu]}
-    </DialogContent>
+    {contents.map((el, i) => <DialogContent key={i} style={{ display: menu == i ? 'flex' : 'none', flexDirection: 'column', minHeight: '18rem', justifyContent: 'space-between', flexWrap: 'wrap', overflow: 'visible' }}>
+      {el}
+    </DialogContent>)}
     <DialogActions>
       <DialogButton action="close" disabled={!initUsername || !ttsID}>Cancel</DialogButton>
       <DialogButton action="accept" isDefaultAction disabled={!username || !projectID || !voiceID || (needAPIKey && !apiKey) || apiKey != infoLoadedKey || !!error}>Save</DialogButton>
