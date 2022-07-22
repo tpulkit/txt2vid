@@ -62,14 +62,12 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
       }
     });
     this.sr.addEventListener('end', () => {
-      console.log('restarting asr');
       this.preResults = this.latestResults.slice();
       if (this.started) this.sr.start();
     });
   }
   start() {
     if (!this.started) {
-      console.log('starting asr');
       this.started = true;
       this.preResults = [];
       this.sr.start();
@@ -77,7 +75,6 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
   }
   stop() {
     if (this.started) {
-      console.log('stopping asr');
       this.started = false;
       this.sr.stop();
     }

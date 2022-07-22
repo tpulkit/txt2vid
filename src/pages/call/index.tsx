@@ -49,8 +49,8 @@ const Call = () => {
         width: { ideal: 1920 }
       } as MediaTrackConstraints
     };
-    if (av.mic) constraints.audio.deviceId = av.mic;
-    if (av.cam) constraints.video.deviceId = av.cam;
+    if (av.mic && av.mic != 'default') constraints.audio.deviceId = av.mic;
+    if (av.cam && av.cam != 'default') constraints.video.deviceId = av.cam;
     navigator.mediaDevices.getUserMedia(constraints).then(stream => {
       selfView.current!.srcObject = stream;
       selfView.current!.muted = true;
@@ -94,7 +94,6 @@ const Call = () => {
       const ccb = asr.on('correction', speech => entry.peer.sendSpeech(speech));
       const chatCb = entry.peer.on('chat', chat => {
         // TODO
-        console.log('received chat', chat);
       });
       const dcb = entry.peer.on('disconnect', () => {
         setPeers(peers => peers.filter(e => e != entry));
@@ -108,7 +107,7 @@ const Call = () => {
       });
 
       if (!entry.vid) {
-        if (process.env.NODE_ENV == 'production') asr.start();
+        // asr.start();
         entry.peer.sendTTSID(ttsID);
         const close = entry.peer.sendVideo(stream!);
         // Amount of time doesn't matter - can also be as long as possible

@@ -372,7 +372,7 @@ let profileWait = Promise.resolve();
 
 for (let i = 0; i < executor.warmUp; ++i) {
   const ret = executor.execute(makeSampleInput());
-  profileWait = profileWait.then(async () => { await ret; });
+  profileWait = profileWait.then(async () => { console.log('warm up start'); await ret; console.log('warm up end') });
 }
 
 let profiles: number[] = JSON.parse(localStorage.getItem('profiles') || '[]');
@@ -438,11 +438,9 @@ export async function genFrames(input: FrameInput[]) {
     input.map(({ spectrogram }) => toInputMelSpectrogram(spectrogram))
   );
   const imgBatch = batch(input.map(({ img }) => toInputFrame(img)));
-  const ts = performance.now();
   const result = await executor.execute({
     mel: melBatch,
     vid: imgBatch
   });
-  console.log('frame prediction took:', performance.now() - ts, 'ms');
   return toOutputImgs(result.gen, input.length);
 }

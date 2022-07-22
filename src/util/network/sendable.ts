@@ -195,7 +195,6 @@ export default class Sendable<
     this.connection.close();
   }
   sub<EC, MC = EC>(id: string): Connection<EC, MC> {
-    console.log('sub', id)
     if (this.closed) throw new Error('connection closed');
     if (this.children[id]) throw new Error('ID exists');
     if (id == '') throw new Error('null ID');
