@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo, createRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { TextField, Typography } from 'rmwc';
+import { TextField, Theme, Typography } from 'rmwc';
 import '@rmwc/textfield/styles';
 import '@rmwc/checkbox/styles';
 import '@rmwc/button/styles';
@@ -96,6 +96,7 @@ const Call = () => {
         // TODO
       });
       const dcb = entry.peer.on('disconnect', () => {
+        console.log('peer disconnected');
         setPeers(peers => peers.filter(e => e != entry));
       });
 
@@ -122,18 +123,22 @@ const Call = () => {
   }, [peers, asr]);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: '100vh' }}>
-      <TextField
-        placeholder="Send a message to the other peer"
-        onKeyDown={(ev) => {
-          if (ev.key == 'Enter' && !ev.shiftKey) {
-            for (const { peer } of peers) {
-              peer.sendSpeech(ev.currentTarget.value);
+      <Theme use="onSurface">
+        <TextField
+          outlined
+          placeholder="Say something to the other peers"
+          onKeyDown={(ev) => {
+            if (ev.key == 'Enter' && !ev.shiftKey) {
+              for (const { peer } of peers) {
+                peer.sendSpeech(ev.currentTarget.value);
+              }
+              ev.currentTarget.value = '';
             }
-            ev.currentTarget.value = '';
-          }
-        }}
-        style={{ width: '30vw', marginTop: '1rem', marginBottom: '1rem' }}
-      />
+          }}
+          disabled={!peers.length}
+          style={{ width: '30vw', marginTop: '1rem', marginBottom: '1rem' }}
+        />
+      </Theme>
       {/* <TextField
         placeholder="Send global chat message"
         onKeyDown={(ev) => {

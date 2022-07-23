@@ -1,4 +1,6 @@
-const lightTheme: Record<string, string> = {
+import { EventEmitter } from "../sub";
+
+export const lightTheme: Record<string, string> = {
   primary: '#1a73e8',
   // secondary: '#e539ff',
   // error: '#b00020',
@@ -25,7 +27,7 @@ const lightTheme: Record<string, string> = {
   // textIconOnDark: 'rgba(255, 255, 255, 0.5)'
 };
 
-const darkTheme: Record<string, string> = {
+export const darkTheme: Record<string, string> = {
   primary: '#24aee9',
   // secondary: '#e539ff',
   error: '#b00020',
@@ -52,4 +54,37 @@ const darkTheme: Record<string, string> = {
   textIconOnDark: 'rgba(255, 255, 255, 0.5)'
 };
 
-export { darkTheme, lightTheme };
+class ThemePreference extends EventEmitter<{ darkMode: boolean; }> {
+  darkMode!: boolean;
+  private pref: 'light' | 'dark' | 'system';
+  private systemMode: boolean;
+  constructor() {
+    super();
+    this.pref = (localStorage.getItem('forceDarkMode') || 'system') as 'light' | 'dark' | 'system';
+    const match = matchMedia('(prefers-color-scheme: dark)');
+    this.systemMode = match.matches;
+    match.addEventListener('change', evt => {
+      this.systemMode = evt.matches;
+      if (this.pref === 'system') {
+        this.darkMode = this.systemMode;
+        this.emit('darkMode', this.darkMode);
+      }
+    });
+    this.updateMode();
+  }
+  get preference() {
+    return this.pref;
+  }
+  set preference(preference: 'light' | 'dark' | 'system') {
+    this.pref = preference;
+    localStorage.setItem('forceDarkMode', preference);
+    const oldMode = this.darkMode;
+    this.updateMode();
+    if (oldMode !== this.darkMode) this.emit('darkMode', this.darkMode);
+  }
+  private updateMode() {
+    this.darkMode = this.preference === 'dark' || (this.preference === 'system' && this.systemMode);
+  }
+}
+
+export const themePreference = new ThemePreference();

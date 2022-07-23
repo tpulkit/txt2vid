@@ -1,8 +1,9 @@
 import createState, { StateBackend } from 'react-universal-state';
+import { themePreference } from './ui';
 
 class PartialPersistence<T extends Record<string, unknown>> implements StateBackend<T> {
   private state: Partial<T>;
-  constructor(private blacklist: string[], private name = 'globalState') {
+  constructor(private blacklist: (keyof T)[], private name = 'globalState') {
     const cached = localStorage.getItem(name);
     if (cached) this.state = JSON.parse(cached);
     else this.state = {};
@@ -32,12 +33,13 @@ const defaults = {
   },
   av: {mic: '', cam: ''},
   username: 'Guest' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0'),
-  showSettings: false
+  showSettings: false,
+  darkMode: themePreference.darkMode
 };
 
 const { hook: useGlobalState } = createState(
   defaults,
-  new PartialPersistence<typeof defaults>(['showSettings'])
+  new PartialPersistence<typeof defaults>(['showSettings', 'darkMode'])
 );
 
 export { useGlobalState };

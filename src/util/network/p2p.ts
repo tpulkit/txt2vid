@@ -57,6 +57,11 @@ export default class RTCConnection<
     private baseConnection: RTCPeerConnection,
     channel: RTCDataChannel
   ) {
+    baseConnection.addEventListener('iceconnectionstatechange', evt => {
+      if (baseConnection.iceConnectionState ==='disconnected') {
+        this.disconnect();
+      }
+    });
     super(channel);
     const seenStreams: Set<MediaStream> = new Set();
     baseConnection.addEventListener('track', (evt) => {

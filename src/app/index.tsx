@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { ThemeProvider, RMWCProvider, DialogQueue } from 'rmwc';
+import { ThemeProvider, RMWCProvider, DialogQueue, Theme } from 'rmwc';
 import '@rmwc/theme/styles';
 import '@rmwc/button/styles';
 import '@rmwc/tabs/styles';
@@ -11,8 +11,9 @@ import '@rmwc/checkbox/styles';
 import '@rmwc/circular-progress/styles';
 import '@rmwc/tooltip/styles';
 import '@rmwc/typography/styles';
-import { lightTheme, darkTheme, dialogs, useGlobalState, mlInit, alert } from '../util';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import '@rmwc/radio/styles';
+import { lightTheme, darkTheme, dialogs, useGlobalState, mlInit, alert, themePreference } from '../util';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Home, Call, StartCall } from '../pages';
 import Settings from './settings';
 import Loading from './loading';
@@ -21,15 +22,18 @@ import './index.css';
 const App = () => {
   const [loaded, setLoaded] = useState(false);
   const [showSettings, setShowSettings] = useGlobalState('showSettings');
+  const [darkMode, setDarkMode] = useGlobalState('darkMode');
   const [ttsID] = useGlobalState('ttsID');
   useEffect(() => {
-    mlInit.then(() => setLoaded(true))
+    mlInit.then(() => setLoaded(true));
+    const tcb = themePreference.on('darkMode', setDarkMode);
+    return () => themePreference.off('darkMode', tcb);
   }, []);
   useEffect(() => {
     if (loaded && !ttsID) {
       alert({
-        title: 'Welcome to Txt2Vid!',
-        body: 'This is a demo of the Txt2Vid platform. Please configure your resemble.ai credentials and username on the settings page to start.',
+        title: <Theme use="onSurface">Welcome to Txt2Vid!</Theme>,
+        body: <Theme use="onSurface">This is a demo of the Txt2Vid platform. Please configure your resemble.ai credentials and username on the settings page to start.</Theme>,
         preventOutsideDismiss: true
       }).then(() => {
         setShowSettings(true);
@@ -37,7 +41,7 @@ const App = () => {
     }
   }, [loaded, ttsID]);
   return (
-    <ThemeProvider options={darkTheme} theme={['background', 'textPrimaryOnBackground']} style={{
+    <ThemeProvider options={darkMode ? darkTheme : lightTheme} theme={['background', 'textPrimaryOnBackground']} style={{
       minHeight: '100vh'
     }}>
       <RMWCProvider tooltip={{ showArrow: true }}>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Dialog, DialogTitle, DialogContent, DialogActions, DialogButton, DialogProps, TextField, TabBar, Tab, Select, CircularProgress, Icon, Tooltip, Theme, Typography, Button, Checkbox } from 'rmwc';
-import { useGlobalState, createTTSID, getVoices, getProjects, MIN_FPS } from '../util';
+import { Dialog, DialogTitle, DialogContent, DialogActions, DialogButton, DialogProps, TextField, TabBar, Tab, Select, CircularProgress, Icon, Tooltip, Theme, Typography, Button, Checkbox, Radio } from 'rmwc';
+import { useGlobalState, createTTSID, getVoices, getProjects, MIN_FPS, themePreference } from '../util';
 import { expectedTime, mlType, rerunProfiles, setMLType } from '../util/ml';
 
 declare let OffscreenCanvas: unknown;
@@ -32,6 +32,8 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
   const [cams, setCams] = useState<Record<string, string>>({});
   const [mics, setMics] = useState<Record<string, string>>({});
   const [camState, setCamState] = useState<boolean | string>(false);
+  const [themePref, setThemePref] = useState<'light' | 'dark' | 'system'>(themePreference.preference);
+  const initPref = useRef<'light' | 'dark' | 'system'>(themePref);
   const abortLast = useRef<AbortController>();
   const needAPIKey = voiceID != initVoiceID || projectID != initProjectID || !initVoiceID || !initProjectID;
 
@@ -99,6 +101,10 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       setVoices({ [initVoiceID]: initVoiceName });
     }
   }, [apiKey, apiKeyFocused]);
+
+  useEffect(() => {
+    themePreference.preference = themePref;
+  }, [themePref]);
 
   let contents: React.ReactNode[] = [
     <>
@@ -189,7 +195,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       />
       <Select
         label="Project ID"
-        disabled={!infoLoadedKey || !Object.keys(projects).length}
+        disabled={!!error || infoLoadedKey != apiKey || !apiKey.length || !Object.keys(projects).length}
         outlined
         enhanced
         required
@@ -201,7 +207,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       />
       <Select
         label="Voice ID"
-        disabled={!infoLoadedKey || !Object.keys(voices).length}
+        disabled={!!error || infoLoadedKey != apiKey || !apiKey.length || !Object.keys(voices).length}
         outlined
         enhanced
         required
@@ -211,6 +217,12 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         style={{ width: '100%' }}
         rootProps={{ style: { width: '100%' } }}
       />
+    </>,
+    <>
+      <Typography use="subtitle1">Theme</Typography>
+      <Radio label="Light" checked={themePref == 'light'} onChange={() => setThemePref('light')} />
+      <Radio label="Dark" checked={themePref == 'dark'} onChange={() => setThemePref('dark')} />
+      <Radio label="Auto" checked={themePref == 'system'} onChange={() => setThemePref('system')} />
     </>
   ];
   return <Dialog preventOutsideDismiss onClose={async evt => {
@@ -222,6 +234,16 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       }
       setGlobalUsername(username);
       setMLType(resultType);
+      initPref.current = themePref;
+    } else {
+      setThemePref(initPref.current);
+      themePreference.preference = initPref.current;
+      setUsername(initUsername);
+      setUseCPU(mlType == 'cpu' || mlType == 'hybrid');
+      setUseGPU(mlType == 'gpu' || mlType == 'hybrid');
+      setLocalAV(av);
+      setAPIKey('');
+      setError('');
     }
     onClose?.(evt);
   }} {...props}>
@@ -230,6 +252,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       <Tab>General</Tab>
       <Tab>Audio/Video</Tab>
       <Tab>resemble.ai</Tab>
+      <Tab>Misc.</Tab>
     </TabBar>
     {contents.map((el, i) => (
       <DialogContent

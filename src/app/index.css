@@ -116,3 +116,14 @@
 .mdc-theme--on-surface .mdc-select.mdc-select--disabled .mdc-select__dropdown-icon {
     filter: opacity(0.2);
 }
+
+.mdc-theme--on-surface .mdc-text-field .mdc-text-field__input::placeholder {
+    color: var(--mdc-theme-on-surface);
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.mdc-theme--on-surface .mdc-radio .mdc-radio__native-control:enabled:not(:checked) + .mdc-radio__background .mdc-radio__outer-circle {
+    border-color: var(--mdc-theme-on-surface);
+}
