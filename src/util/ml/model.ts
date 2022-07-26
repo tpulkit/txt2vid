@@ -372,7 +372,7 @@ let profileWait = Promise.resolve();
 
 for (let i = 0; i < executor.warmUp; ++i) {
   const ret = executor.execute(makeSampleInput());
-  profileWait = profileWait.then(async () => { console.log('warm up start'); await ret; console.log('warm up end') });
+  profileWait = profileWait.then(async () => { await ret; });
 }
 
 let profiles: number[] = JSON.parse(localStorage.getItem('profiles') || '[]');

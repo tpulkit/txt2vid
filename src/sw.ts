@@ -10,7 +10,7 @@ const doCache = (path: string) =>
 
 const doInitCache = (path: string) => 
   doCache(path) &&
-  !path.endsWith('.wasm');
+  !/\.(png|jpeg|webp|wasm)$/.test(path);
 
 self.addEventListener('install', ev => {
   ev.waitUntil(

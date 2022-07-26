@@ -11,18 +11,21 @@ const CHAR_FILL_TARGET = 100;
 const CHAR_SEND = 50;
 
 export class STTEngine extends EventEmitter<STTEngineEvents> {
-  private sr: SpeechRecognition;
+  private sr?: SpeechRecognition;
+  get supported() {
+    return !!this.sr;
+  }
   private started: boolean;
   private preResults!: SpeechRecognitionResult[];
   private latestResults: SpeechRecognitionResult[];
   constructor() {
     super();
-    if (!ASR) throw new TypeError('speech recognition not supported');
+    this.started = false;
+    this.latestResults = [];
+    if (!ASR) return;
     this.sr = new ASR();
     this.sr.interimResults = true;
     this.sr.continuous = true;
-    this.started = false;
-    this.latestResults = [];
     let stripFront = '';
     this.sr.addEventListener('result', evt => {
       let readyMsg = '';
@@ -63,20 +66,21 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
     });
     this.sr.addEventListener('end', () => {
       this.preResults = this.latestResults.slice();
-      if (this.started) this.sr.start();
+      if (this.started) this.sr!.start();
     });
   }
   start() {
     if (!this.started) {
       this.started = true;
       this.preResults = [];
+      if (!this.sr) throw new TypeError('Speech recognition not supported');
       this.sr.start();
     }
   }
   stop() {
     if (this.started) {
       this.started = false;
-      this.sr.stop();
+      this.sr?.stop();
     }
   }
 }

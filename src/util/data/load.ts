@@ -53,7 +53,8 @@ export class DataLoader extends EventEmitter<LoaderEvents> implements PromiseLik
     });
   }
   private async buffer(src: Response) {
-    this.emit('progress', { loaded: 0, total: Infinity });
+    const len = +(src.headers.get('Content-Length') || Infinity);
+    this.emit('progress', { loaded: 0, total: len });
     const result = await src.arrayBuffer();
     this.emit('progress', { loaded: result.byteLength, total: result.byteLength });
     return result;

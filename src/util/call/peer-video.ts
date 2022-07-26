@@ -13,7 +13,6 @@ export const MIN_FPS = 8;
 const TARGET_FPS = 30;
 
 export class PeerVideo extends EventEmitter<PeerVideoEvents> {
-  private ttsID?: string;
   private ctx: CanvasRenderingContext2D;
   private reverse: boolean;
   private data: { frame: ImageData; face: Face; }[];
@@ -36,54 +35,57 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
     // start in reverse
     this.reverse = true;
     this.data = [];
-    peer.on('ttsID', id => this.ttsID = id);
+    let ttsID: string;
+    peer.on('ttsID', id => ttsID = id);
     peer.on('connect', evt => this.emit('start', evt));
-    peer.on('video', async vid => {
-      driver.srcObject = vid;
-      this.faceTracker = await FaceTracker.create(driver);
-      await driver.play();
-      this.fps = Math.min(vid.getVideoTracks()[0].getSettings().frameRate || TARGET_FPS, 60);
-      const frametime = 1000 / this.fps;
-      let ti = performance.now();
-      const initDisplay = (ts: number) => {
-        if (!vid.active) {
-          this.driverTime = this.currentTime = driver.currentTime;
-          driver.srcObject = null;
-          this.lastTimestamp = performance.now();
-          let lastSpeech = Promise.resolve();
-          if (!this.data[0].face) {
-            this.data[0].face = this.data.find(f => f.face)!.face;
+    let lastSpeech = new Promise<void>(resolve => {
+      peer.on('video', async vid => {
+        driver.srcObject = vid;
+        this.faceTracker = await FaceTracker.create(driver);
+        await driver.play();
+        this.fps = Math.min(vid.getVideoTracks()[0].getSettings().frameRate || TARGET_FPS, 60);
+        const frametime = 1000 / this.fps;
+        let ti = performance.now();
+        const initDisplay = (ts: number) => {
+          if (!vid.active) {
+            this.driverTime = this.currentTime = driver.currentTime;
+            driver.srcObject = null;
+            this.lastTimestamp = performance.now();
+            if (!this.data[0].face) {
+              this.data[0].face = this.data.find(f => f.face)!.face;
+            }
+            for (let i = 1; i < this.data.length; ++i) {
+              if (!this.data[i].face) {
+                this.data[i].face = this.data[i - 1].face;
+              }
+            }
+            resolve();
+            this.runLoop(this.lastTimestamp);
+            return;
           }
-          for (let i = 1; i < this.data.length; ++i) {
-            if (!this.data[i].face) {
-              this.data[i].face = this.data[i - 1].face;
+          this.ctx.drawImage(driver, 0, 0);
+          if (ts - ti > frametime) {
+            const result = {
+              frame: this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height),
+              face: this.faceTracker.find()!
+            };
+            while (ts - ti > frametime) {
+              ti += frametime;
+              this.data.push(result);
             }
           }
-          this.runLoop(this.lastTimestamp);
-          peer.on('speech', speech => {
-            if (!this.ttsID) throw new TypeError('no TTS ID for speech');
-            const ttsProm = makeTTS(speech, this.ttsID);
-            lastSpeech = lastSpeech.then(async () => {
-              const tts = await ttsProm;
-              await this.speak(tts);
-            });
-          });
-          return;
-        }
-        this.ctx.drawImage(driver, 0, 0);
-        if (ts - ti > frametime) {
-          const result = {
-            frame: this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height),
-            face: this.faceTracker.find()!
-          };
-          while (ts - ti > frametime) {
-            ti += frametime;
-            this.data.push(result);
-          }
-        }
-        requestAnimationFrame(initDisplay);
-      };
-      initDisplay(ti);
+          requestAnimationFrame(initDisplay);
+        };
+        initDisplay(ti);
+      });
+    });
+    peer.on('speech', speech => {
+      if (!ttsID) throw new TypeError('no TTS ID for speech');
+      const ttsProm = makeTTS(speech, ttsID);
+      lastSpeech = lastSpeech.then(async () => {
+        const tts = await ttsProm;
+        await this.speak(tts);
+      });
     });
     peer.on('disconnect', evt => {
       this.ended = true;
@@ -139,6 +141,7 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
       let bufs: Float32Array[] = [];
       return new Promise<void>(resolve => {
         let spec = 0;
+        let finished = false;
         const interval = setInterval(async () => {
           const buf = new Float32Array(analyser.frequencyBinCount);
           analyser.getFloatFrequencyData(buf);
@@ -149,6 +152,7 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
             const { frame, face } = this.getData(targetTime);
             const img = this.faceTracker.extract(face, IMG_SIZE, frame);
             genFrames([{ img, spectrogram }]).then(([result]) => {
+              if (finished) return;
               this.paused = true;
               this.ctx.putImageData(frame, 0, 0);
               this.faceTracker.plaster(face, result, this.ctx);
@@ -163,6 +167,7 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
           setTimeout(() => {
             clearInterval(interval);
             setTimeout(() => {
+              finished = true;
               this.paused = false;
               resolve();
             }, 1000 * predTime);

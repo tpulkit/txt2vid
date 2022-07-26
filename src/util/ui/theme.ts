@@ -65,7 +65,7 @@ class ThemePreference extends EventEmitter<{ darkMode: boolean; }> {
     this.systemMode = match.matches;
     match.addEventListener('change', evt => {
       this.systemMode = evt.matches;
-      if (this.pref === 'system') {
+      if (this.pref == 'system') {
         this.darkMode = this.systemMode;
         this.emit('darkMode', this.darkMode);
       }
@@ -83,7 +83,7 @@ class ThemePreference extends EventEmitter<{ darkMode: boolean; }> {
     if (oldMode !== this.darkMode) this.emit('darkMode', this.darkMode);
   }
   private updateMode() {
-    this.darkMode = this.preference === 'dark' || (this.preference === 'system' && this.systemMode);
+    this.darkMode = this.preference == 'dark' || (this.preference == 'system' && this.systemMode);
   }
 }
 

@@ -57,11 +57,6 @@ export default class RTCConnection<
     private baseConnection: RTCPeerConnection,
     channel: RTCDataChannel
   ) {
-    baseConnection.addEventListener('iceconnectionstatechange', evt => {
-      if (baseConnection.iceConnectionState ==='disconnected') {
-        this.disconnect();
-      }
-    });
     super(channel);
     const seenStreams: Set<MediaStream> = new Set();
     baseConnection.addEventListener('track', (evt) => {
@@ -77,6 +72,11 @@ export default class RTCConnection<
         this,
         channel
       );
+    });
+    baseConnection.addEventListener('iceconnectionstatechange', evt => {
+      if (baseConnection.iceConnectionState == 'disconnected') {
+        this.disconnect();
+      }
     });
   }
   static init<EC, MC = EC>(
@@ -188,7 +188,6 @@ export default class RTCConnection<
       super(channel);
       channel.bufferedAmountLowThreshold = 262144;
       channel.addEventListener('open', () => this.emit('connect', undefined));
-      channel.addEventListener('error', console.error);
       channel.addEventListener('close', () => {
         this.disconnect();
       });

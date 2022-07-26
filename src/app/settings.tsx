@@ -85,8 +85,8 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
         setVoices(newVoices);
         setProjects(newProjects);
         setError('');
-      }, err => {
-        if (err instanceof Error && err.name === 'AbortError') return;
+      }, () => {
+        if (controller.signal.aborted) return;
         setError('Invalid API token');
       }).finally(() => {
         setLoading(false);
@@ -128,7 +128,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       <Button
         raised
         label={`Benchmark${!loadingProfile ? ` (${time <= 1000 / MIN_FPS ? (1000 / time).toFixed(1) + ' FPS' : `${MIN_FPS} FPS delayed`})` : ''}`}
-        disabled={loadingProfile || /\/call\/([^\/]+)$/.test(location.pathname)}
+        disabled={loadingProfile || /\/call\/([^\/]+)$/.test(location.pathname) || resultType != mlType}
         trailingIcon={loadingProfile ? <CircularProgress /> : undefined}
         onClick={() => {
           setLoadingProfile(true);
@@ -176,7 +176,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
           setCamState('Camera access denied. Please update your browser settings.');
         });
       }}
-        trailingIcon={camState ? camState === true ? <Theme use="secondary">check_circle</Theme> : <Theme use="error">error_outline</Theme> : <CircularProgress theme="error" />}
+        trailingIcon={camState ? camState === true ? <Theme use="secondary">check_circle</Theme> : <Theme use="error">error_outline</Theme> : <CircularProgress theme="textPrimaryOnDark" />}
         style={{ alignSelf: 'center' }}
       />
     </>,
@@ -226,7 +226,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
     </>
   ];
   return <Dialog preventOutsideDismiss onClose={async evt => {
-    if (evt.detail.action === 'accept') {
+    if (evt.detail.action == 'accept') {
       setResemble({ voice: voices[voiceID], project: projects[projectID] });
       setAV(localAV);
       if (needAPIKey || apiKey != '') {
@@ -264,7 +264,7 @@ const Settings = ({ onClose, ...props }: DialogProps) => {
       </DialogContent>
     ))}
     <DialogActions>
-      <DialogButton action="close" disabled={!initUsername || !ttsID}>Cancel</DialogButton>
+      <DialogButton action="close" disabled={!initUsername || ['', '..'].includes(ttsID)}>Cancel</DialogButton>
       <DialogButton action="accept" isDefaultAction disabled={!username || !projectID || !voiceID || (needAPIKey && !apiKey) || apiKey != infoLoadedKey || !!error}>Save</DialogButton>
     </DialogActions>
   </Dialog>

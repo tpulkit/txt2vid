@@ -10,7 +10,7 @@ const pretty = (bytes: number) => {
     bytes /= 1024;
     i++;
   }
-  return `${bytes.toFixed(1)}${units[i]}`;
+  return `${i ? bytes.toFixed(1) : bytes}${units[i]}`;
 }
 
 const Loading = () => {

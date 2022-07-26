@@ -1,10 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo, createRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { TextField, Theme, Typography } from 'rmwc';
-import '@rmwc/textfield/styles';
-import '@rmwc/checkbox/styles';
-import '@rmwc/button/styles';
-import '@rmwc/dialog/styles';
+import { Switch, TextField, Theme, Typography } from 'rmwc';
 import {
   useGlobalState,
   PeerVideo,
@@ -29,6 +25,7 @@ const Call = () => {
   const { roomID } = useParams();
   const [searchParams] = useSearchParams();
   const [room, setRoom] = useState<Room | null>(null);
+  const [autoASR, setAutoASR] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<PeerEntry[]>([]);
   const asr = useMemo(() => new STTEngine(), []);
@@ -87,28 +84,32 @@ const Call = () => {
   }, [room]);
 
   useEffect(() => {
-    if (!peers.length) asr.stop();
+    if (autoASR && peers.length) asr.start();
+    else asr.stop();
     const cleanups: (() => void)[] = [];
     for (const entry of peers) {
-      const scb = asr.on('speech', speech => entry.peer.sendSpeech(speech));
-      const ccb = asr.on('correction', speech => entry.peer.sendSpeech(speech));
+      if (autoASR) {
+        const scb = asr.on('speech', speech => entry.peer.sendSpeech(speech));
+        const ccb = asr.on('correction', speech => entry.peer.sendSpeech(speech));
+        cleanups.push(() => {
+          asr.off('speech', scb);
+          asr.off('correction', ccb);
+        });
+      }
+
       const chatCb = entry.peer.on('chat', chat => {
         // TODO
       });
       const dcb = entry.peer.on('disconnect', () => {
-        console.log('peer disconnected');
         setPeers(peers => peers.filter(e => e != entry));
       });
 
       cleanups.push(() => {
-        asr.off('speech', scb);
-        asr.off('correction', ccb);
         entry.peer.off('disconnect', dcb);
         entry.peer.off('chat', chatCb);
       });
 
       if (!entry.vid) {
-        // asr.start();
         entry.peer.sendTTSID(ttsID);
         const close = entry.peer.sendVideo(stream!);
         // Amount of time doesn't matter - can also be as long as possible
@@ -120,7 +121,7 @@ const Call = () => {
     return () => {
       for (const cleanup of cleanups) cleanup();
     }
-  }, [peers, asr]);
+  }, [peers, asr, autoASR]);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: '100vh' }}>
       <Theme use="onSurface">
@@ -135,9 +136,12 @@ const Call = () => {
               ev.currentTarget.value = '';
             }
           }}
-          disabled={!peers.length}
+          disabled={!peers.length || autoASR}
           style={{ width: '30vw', marginTop: '1rem', marginBottom: '1rem' }}
         />
+        <Switch label="Send speech" onChange={(evt: React.FormEvent<HTMLInputElement>) => {
+          setAutoASR(evt.currentTarget.checked);
+        }} disabled={!asr.supported} style={{ marginLeft: '2rem' }} />
       </Theme>
       {/* <TextField
         placeholder="Send global chat message"
