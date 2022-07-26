@@ -34,7 +34,7 @@ export default class Sendable<
       this.emit('connect', undefined);
     });
     connection.addEventListener('close', () => {
-      this.emit('disconnect', undefined);
+      this.cleanup();
     });
     connection.addEventListener('message', (evt) => {
       const dat = evt.data as ArrayBuffer | string;
@@ -187,12 +187,17 @@ export default class Sendable<
     if (this.closed) throw new Error('connection closed');
     return this.sendStream(msg, this.controllerID++);
   }
-  disconnect() {
+  private cleanup() {
+    if (this.closed) return;
     this.closed = true;
     for (const child in this.children) {
       this.children[child].disconnect();
     }
+    this.emit('disconnect', undefined);
+  }
+  disconnect() {
     this.connection.close();
+    this.cleanup();
   }
   sub<EC, MC = EC>(id: string): Connection<EC, MC> {
     if (this.closed) throw new Error('connection closed');
@@ -215,7 +220,9 @@ export default class Sendable<
       private pfxBin: Uint8Array
     ) {
       super();
-      this.emit('connect', undefined);
+      queueMicrotask(() => {
+        this.emit('connect', undefined);
+      });
       parent.children[pfx] = this as Connection<unknown>;
       parent.childrenControllers[pfx] = [];
     }
@@ -239,9 +246,9 @@ export default class Sendable<
       );
     }
     disconnect() {
-      this.emit('disconnect', undefined);
       delete this.parent.children[this.pfx];
       delete this.controllerID;
+      this.emit('disconnect', undefined);
     }
   };
 }

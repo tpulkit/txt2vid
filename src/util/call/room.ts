@@ -37,10 +37,17 @@ export interface Peer extends EventEmitter<PeerEvents> {
 }
 
 class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
+  private closed = true;
   constructor(private conn: P2P<P2PEvents>, public id: string) {
     super();
-    conn.on('connect', evt => this.emit('connect', evt));
-    conn.on('disconnect', evt => this.emit('disconnect', evt));
+    conn.on('connect', evt => {
+      this.closed = false;
+      this.emit('connect', evt);
+    });
+    conn.on('disconnect', evt => {
+      this.closed = true;
+      this.emit('disconnect', evt);
+    });
     conn.on('message', evt => {
       switch (evt.type) {
         case 'speech':
@@ -60,15 +67,19 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
     conn.on('stream', stream => this.emit('video', stream));
   }
   sendTTSID(id: string) {
+    if (this.closed) return;
     this.conn.send('id', id);
   }
   sendVideo(stream: MediaStream) {
+    if (this.closed) return () => {};
     return this.conn.sendMediaStream(stream);
   }
   sendChat(chat: string) {
+    if (this.closed) return;
     this.conn.send('chat', chat);
   }
   sendSpeech(speech: string) {
+    if (this.closed) return;
     this.conn.send('speech', speech);
   }
 }

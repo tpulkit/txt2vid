@@ -16,11 +16,12 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
     return !!this.sr;
   }
   private started: boolean;
-  private preResults!: SpeechRecognitionResult[];
+  private preResults: SpeechRecognitionResult[];
   private latestResults: SpeechRecognitionResult[];
   constructor() {
     super();
     this.started = false;
+    this.preResults = [];
     this.latestResults = [];
     if (!ASR) return;
     this.sr = new ASR();
@@ -40,13 +41,19 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
         }
       }
       if (!readyMsg.startsWith(stripFront)) {
-        for (let i = stripFront.length; i > 0; --i) {
+        let simInd = 0;
+        for (; simInd < Math.min(stripFront.length, readyMsg.length); ++simInd) {
+          if (stripFront[simInd] !== readyMsg[simInd]) break;
+        }
+        stripFront = '';
+        for (let i = simInd; i > 0; --i) {
           if (readyMsg[i] == ' ') {
             stripFront = readyMsg.slice(0, i);
             break;
           }
         }
-        this.emit('correction', readyMsg.slice(stripFront.length).trim());
+        const final = readyMsg.slice(stripFront.length).trim();
+        if (final) this.emit('correction', final);
       } else {
         readyMsg = readyMsg.slice(stripFront.length);
         let send = '';
@@ -61,7 +68,8 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
           }
         }
         stripFront += send;
-        if (send) this.emit('speech', send.trim());
+        const final = send.trim();
+        if (final) this.emit('speech', final);
       }
     });
     this.sr.addEventListener('end', () => {
@@ -72,7 +80,6 @@ export class STTEngine extends EventEmitter<STTEngineEvents> {
   start() {
     if (!this.started) {
       this.started = true;
-      this.preResults = [];
       if (!this.sr) throw new TypeError('Speech recognition not supported');
       this.sr.start();
     }
