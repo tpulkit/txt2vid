@@ -31,7 +31,7 @@ interface RoomEvents {
 export interface Peer extends EventEmitter<PeerEvents> {
   id: string;
   sendTTSID(id: string): void;
-  sendVideo(stream: MediaStream): () => void;
+  sendVideo(stream: MediaStream): { senders: RTCRtpSender[]; close: () => void; };
   sendSpeech(speech: string): void;
   sendChat(chat: string): void;
 }
@@ -71,7 +71,7 @@ class RoomPeer extends EventEmitter<PeerEvents> implements Peer {
     this.conn.send('id', id);
   }
   sendVideo(stream: MediaStream) {
-    if (this.closed) return () => {};
+    if (this.closed) return { senders: [], close: () => {} };
     return this.conn.sendMediaStream(stream);
   }
   sendChat(chat: string) {

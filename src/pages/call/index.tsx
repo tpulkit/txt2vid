@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo, createRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Switch, TextField, Theme, Typography } from 'rmwc';
+import { Slider, Switch, TextField, Theme, Typography, SliderOnChangeEventT, Checkbox } from 'rmwc';
 import {
   useGlobalState,
   PeerVideo,
@@ -15,6 +15,7 @@ type PeerEntry = {
   peer: Peer;
   ref: React.RefObject<HTMLCanvasElement>;
   vid?: PeerVideo;
+  senders?: RTCRtpSender[];
 };
 
 const Call = () => {
@@ -22,12 +23,16 @@ const Call = () => {
   const [av] = useGlobalState('av')
   const [username] = useGlobalState('username');
   const [id, setID] = useState(username);
+  const [driverVideoLength, setDriverVideoLength] = useState(5000);
+  const [bitrate, setBitrate] = useState(1000);
+  const [useTxt2Vid, setUseTxt2Vid] = useState(true);
   const { roomID } = useParams();
   const [searchParams] = useSearchParams();
   const [room, setRoom] = useState<Room | null>(null);
   const [autoASR, setAutoASR] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<PeerEntry[]>([]);
+  const [ready, setReady] = useState(false);
   const asr = useMemo(() => new STTEngine(), []);
   const selfView = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
@@ -63,13 +68,13 @@ const Call = () => {
   }, []);
 
   useEffect(() => {
-    if (roomID && stream && ttsID) {
+    if (roomID && stream && ttsID && ready) {
       const room = new Room(roomID, username, searchParams.get('pw') ?? undefined);
       setPeers([]);
       setRoom(room);
       return () => room.disconnect();
     } else setRoom(null);
-  }, [roomID, stream, ttsID]);
+  }, [roomID, stream, ttsID, ready]);
 
   useEffect(() => {
     if (room) {
@@ -82,6 +87,19 @@ const Call = () => {
       return () => room.off('peer', cb);
     }
   }, [room]);
+
+  useEffect(() => {
+    for (const { senders } of peers) {
+      for (const sender of senders || []) {
+        if (['video', 'audio'].includes(sender.track?.kind!)) {
+          const params = sender.getParameters();
+          if (!params.encodings) params.encodings = [{}];
+          params.encodings[0].maxBitrate = sender.track!.kind == 'video' ? bitrate * 900 : bitrate * 100;
+          sender.setParameters(params);
+        }
+      }
+    }
+  }, [bitrate]);
 
   useEffect(() => {
     if (autoASR && peers.length) asr.start();
@@ -111,9 +129,10 @@ const Call = () => {
 
       if (!entry.vid) {
         entry.peer.sendTTSID(ttsID);
-        const close = entry.peer.sendVideo(stream!);
+        const result = entry.peer.sendVideo(stream!);
+        entry.senders = result.senders;
         // Amount of time doesn't matter - can also be as long as possible
-        setTimeout(close, 5000);
+        if (useTxt2Vid) setTimeout(result.close, driverVideoLength);
         
         entry.vid = new PeerVideo(entry.peer, entry.ref.current!);
       }
@@ -122,26 +141,69 @@ const Call = () => {
       for (const cleanup of cleanups) cleanup();
     }
   }, [peers, asr, autoASR]);
+  useEffect(() => {
+    dispatchEvent(new Event('resize'));
+  }, [useTxt2Vid]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: '100vh' }}>
-      <Theme use="onSurface">
-        <TextField
-          outlined
-          placeholder="Say something to the other peers"
-          onKeyDown={(ev) => {
-            if (ev.key == 'Enter' && !ev.shiftKey) {
-              for (const { peer } of peers) {
-                peer.sendSpeech(ev.currentTarget.value);
+      <Theme use="onSurface" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div>
+          <TextField
+            outlined
+            placeholder="Say something to the other peers"
+            onKeyDown={(ev) => {
+              if (ev.key == 'Enter' && !ev.shiftKey) {
+                for (const { peer } of peers) {
+                  peer.sendSpeech(ev.currentTarget.value);
+                }
+                ev.currentTarget.value = '';
               }
-              ev.currentTarget.value = '';
-            }
-          }}
-          disabled={!peers.length || autoASR}
-          style={{ width: '30vw', marginTop: '1rem', marginBottom: '1rem' }}
-        />
-        <Switch label="Send speech" onChange={(evt: React.FormEvent<HTMLInputElement>) => {
-          setAutoASR(evt.currentTarget.checked);
-        }} disabled={!asr.supported} style={{ marginLeft: '2rem' }} />
+            }}
+            disabled={!peers.length || autoASR}
+            style={{ width: '30vw', marginTop: '1rem', marginBottom: '1rem' }}
+          />
+          <Switch label="Send speech" onChange={(evt: React.FormEvent<HTMLInputElement>) => {
+            setAutoASR(evt.currentTarget.checked);
+          }} disabled={!asr.supported} style={{ marginLeft: '2rem' }} />
+        </div>
+        <Theme use="onSurface" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Slider
+            value={driverVideoLength / 1000}
+            onChange={(evt: SliderOnChangeEventT) => setDriverVideoLength(evt.detail.value * 1000)}
+            min={3}
+            max={10}
+            discrete
+            step={0.5}
+            disabled={peers.length > 0}
+            style={!useTxt2Vid ? { display: 'none' } : {}}
+          />
+          <Slider
+            value={bitrate}
+            onChange={(evt: SliderOnChangeEventT) => setBitrate(evt.detail.value)}
+            min={10}
+            max={2000}
+            discrete
+            step={10}
+            disabled={!peers.length}
+            style={!useTxt2Vid ? {} : { display: 'none' }}
+          />
+          <Checkbox
+            theme="onSurface"
+            label="Disable Txt2Vid (high bandwidth required)"
+            disabled={peers.length > 0}
+            checked={!useTxt2Vid}
+            onChange={(evt: React.FormEvent<HTMLInputElement>) => {
+              setUseTxt2Vid(!evt.currentTarget.checked);
+            }}
+          />
+          <Typography use="body1">{useTxt2Vid
+            ? `Using Txt2Vid (~100bps, ${driverVideoLength / 1000}s driver video)`
+            : `Using VP8/VP9 (~${bitrate}kbps)`}</Typography>
+          <Switch label="Ready" checked={ready} onChange={(evt: React.FormEvent<HTMLInputElement>) => {
+            setReady(evt.currentTarget.checked);
+          }} style={{ margin: '1rem' }} />
+        </Theme>
       </Theme>
       {/* <TextField
         placeholder="Send global chat message"

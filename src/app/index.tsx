@@ -9,6 +9,7 @@ import '@rmwc/snackbar/styles';
 import '@rmwc/icon/styles';
 import '@rmwc/select/styles';
 import '@rmwc/checkbox/styles';
+import '@rmwc/slider/styles';
 import '@rmwc/switch/styles';
 import '@rmwc/circular-progress/styles';
 import '@rmwc/tooltip/styles';
@@ -29,7 +30,7 @@ const App = () => {
   useEffect(() => {
     Promise.all([mlInit, needsNewID()]).then(([_, requestNewID]) => {
       setLoadState(requestNewID ? !ttsID ? 1 : 2 : ttsID == '..' ? 2 : 3);
-      if (requestNewID) setTTSID('..');
+      if (requestNewID && ttsID) setTTSID('..');
     });
     const tcb = themePreference.on('darkMode', setDarkMode);
     return () => themePreference.off('darkMode', tcb);

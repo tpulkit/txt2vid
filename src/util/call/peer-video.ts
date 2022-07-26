@@ -11,6 +11,7 @@ interface PeerVideoEvents {
 
 export const MIN_FPS = 8;
 const TARGET_FPS = 30;
+const MAX_DRIVER_LENGTH = 60;
 
 export class PeerVideo extends EventEmitter<PeerVideoEvents> {
   private ctx: CanvasRenderingContext2D;
@@ -72,6 +73,9 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
             while (ts - ti > frametime) {
               ti += frametime;
               this.data.push(result);
+            }
+            while (this.data.length >= MAX_DRIVER_LENGTH * this.fps) {
+              this.data.shift();
             }
           }
           requestAnimationFrame(initDisplay);

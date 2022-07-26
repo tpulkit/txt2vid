@@ -127,3 +127,7 @@
 .mdc-theme--on-surface .mdc-radio .mdc-radio__native-control:enabled:not(:checked) + .mdc-radio__background .mdc-radio__outer-circle {
     border-color: var(--mdc-theme-on-surface);
 }
+
+.mdc-form-field > label {
+    padding-left: 1rem;
+}

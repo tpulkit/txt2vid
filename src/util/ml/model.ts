@@ -42,7 +42,7 @@ declare let OffscreenCanvas: {
   new (width: number, height: number): HTMLCanvasElement;
 };
 
-export const loading = new DataLoader(modelURL, 'wav2lip');
+export const loading = new DataLoader(modelURL.pathname, 'wav2lip');
 
 type Executor = {
   warmUp: number;

@@ -11,7 +11,7 @@ const PeerDisplay = forwardRef<HTMLCanvasElement, Omit<React.HTMLAttributes<HTML
       position: 'relative'
     }} {...props}>
       <canvas ref={ref} style={{
-        height: '50vh'
+        height: '30vh'
       }} />
       <div style={{
         position: 'absolute',

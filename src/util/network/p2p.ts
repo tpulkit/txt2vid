@@ -159,11 +159,14 @@ export default class RTCConnection<
     for (const track of stream.getTracks()) {
       senders.push(this.baseConnection.addTrack(track, stream));
     }
-    return () => {
-      for (const sender of senders) {
-        this.baseConnection.removeTrack(sender);
-      }
-    };
+    return {
+      senders,
+      close: () => {
+        for (const sender of senders) {
+          this.baseConnection.removeTrack(sender);
+        }
+      },
+    }
   }
   sub<EC, MC = EC>(
     name: string,
