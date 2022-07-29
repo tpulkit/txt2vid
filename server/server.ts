@@ -43,7 +43,12 @@ app.get('/tts', async (req, res) => {
   cache[cacheID] = new Promise(resolve => {
     nonceCB[nonce] = resolve;
   });
-  const { projectID, voiceID, apiKey } = await parseTTSID(id);
+  let projectID: string, voiceID: string, apiKey: string;
+  try {
+    ({ projectID, voiceID, apiKey } = await parseTTSID(id));
+  } catch (err) {
+    return res.status(400).end();
+  }
   const result = await request(`/projects/${projectID}/clips`, 'POST', apiKey, {
     body: text,
     voice_uuid: voiceID,

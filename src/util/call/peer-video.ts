@@ -30,8 +30,9 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
     this.ended = false;
     this.ctx = this.canvas.getContext('2d')!;
     driver.addEventListener('resize', () => {
-      this.canvas.width = driver.videoWidth;
-      this.canvas.height = driver.videoHeight;
+      const targetWidth = Math.min(640, driver.videoWidth)
+      this.canvas.width = targetWidth;
+      this.canvas.height = driver.videoHeight / driver.videoWidth * targetWidth;
     });
     // start in reverse
     this.reverse = true;
@@ -64,7 +65,7 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
             this.runLoop(this.lastTimestamp);
             return;
           }
-          this.ctx.drawImage(driver, 0, 0);
+          this.ctx.drawImage(driver, 0, 0, driver.videoWidth, driver.videoHeight, 0, 0, this.canvas.width, this.canvas.height);
           if (ts - ti > frametime) {
             const result = {
               frame: this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height),
@@ -74,9 +75,7 @@ export class PeerVideo extends EventEmitter<PeerVideoEvents> {
               ti += frametime;
               this.data.push(result);
             }
-            while (this.data.length >= MAX_DRIVER_LENGTH * this.fps) {
-              this.data.shift();
-            }
+            this.data = this.data.slice(-(MAX_DRIVER_LENGTH * this.fps));
           }
           requestAnimationFrame(initDisplay);
         };
