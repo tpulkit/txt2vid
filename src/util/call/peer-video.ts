@@ -11,7 +11,7 @@ interface PeerVideoEvents {
 
 export const MIN_FPS = 8;
 const TARGET_FPS = 30;
-const MAX_DRIVER_LENGTH = 60;
+const MAX_DRIVER_LENGTH = 10;
 
 export class PeerVideo extends EventEmitter<PeerVideoEvents> {
   private ctx: CanvasRenderingContext2D;

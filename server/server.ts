@@ -131,8 +131,17 @@ app.ws('/room/:id', (_ws, req) => {
       } else broadcast(msg);
     }
   });
+  let missed = 0;
+  const interval = setInterval(() => {
+    if (missed++ > 1) ws.terminate();
+    ws.ping();
+  }, 2500);
+  ws.on('pong', () => {
+    missed = 0;
+  });
   ws.on('close', () => {
     delete room.conns[uid!];
+    clearInterval(interval);
     for (const _ in room.conns) {
       broadcast(json({
         type: 'disconnect',

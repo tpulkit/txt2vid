@@ -73,11 +73,6 @@ export default class RTCConnection<
         channel
       );
     });
-    baseConnection.addEventListener('iceconnectionstatechange', evt => {
-      if (baseConnection.iceConnectionState == 'disconnected') {
-        this.disconnect();
-      }
-    });
   }
   static init<EC, MC = EC>(
     signaling: Connection<SignalingConnectionEvents>,
