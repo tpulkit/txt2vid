@@ -4,10 +4,27 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AV Recorder</title>
+    <title>Txt2Vid Recorder</title>
 </head>
 <body>
-    <script src="index.js"></script>
-    <video id="live-feed"></video>
+    <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.js"></script>
+    <script src="rtc-index.js"></script>
+    <video id="live-feed" autoplay muted></video>
+    <div id="recipients"></div>
+    <br>
+    <div>
+        <label for="video-codec">Video codec: </label>
+        <select id="video-codec"></select>
+        <label for="video-bitrate">Video bitrate (kbps): </label>
+        <input type="number" id="video-bitrate" placeholder="Video bitrate (kbps)" value="100">
+        <br>
+        <label for="audio-codec">Audio codec: </label>
+        <select id="audio-codec"></select>
+        <label for="audio-bitrate">Audio bitrate (kbps): </label>
+        <input type="number" id="audio-bitrate" placeholder="Audio bitrate (kbps)" value="10">
+        <button id="add-codec">Add codec</button>
+    </div>
+    <button id="start" disabled>Start recording</button>
+    <button id="stop" disabled>Stop recording</button>
 </body>
 </html>
