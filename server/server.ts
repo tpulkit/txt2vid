@@ -75,7 +75,7 @@ app.post('/tts_callback', (req, res) => {
 });
 
 app.ws('/room/:id', (_ws, req) => {
-  const ws = Object.assign(_ws, { ip: req.ip }) as WebSocketWithIP;
+  const ws = Object.assign(_ws, { ip: req.ip! }) as unknown as WebSocketWithIP;
   const { id } = req.params;
   const { pw, un } = req.query as Record<string, string | undefined>;
   let room = rooms[id];
