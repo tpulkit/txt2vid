@@ -46,43 +46,19 @@ Alternatively, if you're on a Mac and have [Homebrew](https://brew.sh), you can 
 
 If you already have `node` and `npm` installed, you can skip this step entirely.
 
-### (Temporary) Installing ONNX Runtime Web fork
-
-In the `txt2vid` directory, run the following commands:
-
-```sh
-cd onnxruntime/js/common
-npm i
-cd ../web
-npm i
-npm run pull:wasm
-npm run build
-NODE_OPTIONS=--max-old-space-size=4096 npm run build
-```
-
-This process and particularly the last step can take up to 15 minutes, so be patient. Once ONNX Runtime Web merges the relevant PRs, this entire process won't be necessary.
-
-### Installing Yarn
-
+### Installing dependencies
 Now that you have Node.js installed, you should be able to run `npm -v` in the terminal. If you get an error or a version number below `6.0.0`, double check you followed the previous steps correctly.
 
-If that command worked, you can install Yarn Classic:
+You can install `txt2vid`'s dependencies with the following command:
 ```sh
-npm install -g yarn
-```
-
-This should add a `yarn` command to your `$PATH`, so you should be able to run `yarn -v`. You should see a version greater than `1.18.0`.
-
-If all that worked, you can install `txt2vid`'s dependencies with the following command:
-```sh
-yarn install
+npm install
 ```
 
 It may take a few minutes to finish, but when it's done you should see a gigantic `node_modules` folder inside `txt2vid`.
 
 ### Developing
 
-To start the development environment, run `yarn start` in the `txt2vid` directory. You should see the app building, and you should be able to go to `http://localhost:4200` in your browser to open the web app once you see a build success message.
+To start the development environment, run `npm start` in the `txt2vid` directory. You should see the app building, and you should be able to go to `http://localhost:4200` in your browser to open the web app once you see a build success message.
 
 The web application's UI is a bit unintuitive at the moment, but you should get a prompt to allow camera and mic access when you open it and click on "Join test room". Input your Resemble ID in the format shown. Now, you can test the real-time video conferencing (it's basically like Zoom or Google Meet but sends only ~100bps on the P2P connection after the initial driver video).
 

@@ -3,7 +3,7 @@ import Parcel from '@parcel/core';
 import express from 'express';
 import expressWS from 'express-ws';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import ngrok from 'ngrok';
+import ngrok from '@ngrok/ngrok';
 import path from 'path';
 
 const PORT = 4200;
@@ -28,9 +28,9 @@ app.listen(PORT, () => {
 let prebundle = Promise.resolve();
 
 if (!process.env.WEBSITE) {
-  prebundle = ngrok.connect(PORT).then(result => {
-    process.env.WEBSITE = result;
-    console.log('Publicly hosted at', result);
+  prebundle = ngrok.forward({ addr: PORT, authtoken_from_env: true }).then(result => {
+    process.env.WEBSITE = result.url()!;
+    console.log('Publicly hosted at', result.url()!);
   });
 }
 

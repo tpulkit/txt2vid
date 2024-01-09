@@ -11,6 +11,7 @@
     "postinstall": "patch-package"
   },
   "devDependencies": {
+    "@ngrok/ngrok": "^0.9.1",
     "@parcel/compressor-brotli": "^2.6.2",
     "@parcel/compressor-gzip": "^2.6.2",
     "@parcel/packager-raw-url": "^2.6.2",
@@ -21,8 +22,7 @@
     "@types/node-fetch": "^2.6.2",
     "@types/react-dom": "^16.9.16",
     "http-proxy-middleware": "^2.0.6",
-    "ngrok": "^4.3.1",
-    "onnxruntime-web": "^1.11.0",
+    "onnxruntime-web": "^1.14.0",
     "parcel": "^2.6.2",
     "parcel-config-pwa-manifest": "^0.1.2",
     "patch-package": "^6.4.7",
@@ -45,8 +45,5 @@
     "rmwc": "6",
     "web-streams-polyfill": "^3.2.1",
     "webrtc-adapter": "^8.1.1"
-  },
-  "alias": {
-    "onnxruntime-web": "./onnxruntime/js/web"
   }
 }
